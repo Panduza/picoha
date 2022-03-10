@@ -4,7 +4,7 @@ Feature: I2C Master
 
     Scenario: Adapter configuration as I2C master
 
-        Given a connected adapter
+        Given the test adapter connected
         # When scanning for tty USB ids "<manufacturer>" and "<product>"
         # Then the serial number must be "<serial>"
 
