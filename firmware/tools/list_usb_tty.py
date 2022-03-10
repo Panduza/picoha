@@ -15,6 +15,10 @@ for device in context.list_devices(ID_BUS='usb'):
         print(f" - ID_MODEL_ID:         {properties['ID_MODEL_ID']}")
     if 'ID_SERIAL_SHORT' in properties:
         print(f" - ID_SERIAL_SHORT:     {properties['ID_SERIAL_SHORT']}")
+    if 'DEVNAME' in properties:
+        print(f" - DEVNAME:             {properties['DEVNAME']}")
+    
+    
         
     # print(properties)
 

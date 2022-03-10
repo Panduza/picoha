@@ -34,6 +34,7 @@ def foo_0(context):
     ID_SERIAL_SHORT="TEST_123456789"
     context.device_serial_port = ttyPortfromUsbInfo(vendor_id=ID_VENDOR_ID, product_id=ID_MODEL_ID, serial=ID_SERIAL_SHORT)
     assert context.device_serial_port is not None, f"Test adapter not connected ! {ID_VENDOR_ID}:{ID_MODEL_ID}/{ID_SERIAL_SHORT}"
+    xdocz.AttachTextLog(context, f"serial port: {context.device_serial_port}")
 
 ###############################################################################
 ###############################################################################

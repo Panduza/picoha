@@ -1,7 +1,7 @@
 #
 
 ```bash
-pip install pyudev
+pip install pyudev pyserial
 ```
 
 
