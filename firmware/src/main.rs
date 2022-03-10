@@ -12,6 +12,10 @@
 #![no_std]
 #![no_main]
 
+
+mod config;
+
+
 // The macro for our start-up function
 use cortex_m_rt::entry;
 
@@ -110,10 +114,10 @@ fn main() -> ! {
     }
 
     // Create a USB device with a fake VID and PID
-    let usb_dev = UsbDeviceBuilder::new(bus_ref, UsbVidPid(0x16c0, 0x27dd))
-        .manufacturer("Fake company")
-        .product("Serial port")
-        .serial_number("TEST")
+    let usb_dev = UsbDeviceBuilder::new(bus_ref, UsbVidPid(config::USB_MANUFACTURER_ID, config::USB_PRODUCT_ID))
+        .manufacturer(config::USB_MANUFACTURER_NAME)
+        .product(config::USB_PRODUCT_NAME)
+        .serial_number(config::USB_SERIAL_NUMBER)
         .device_class(2) // from: https://www.usb.org/defined-class-codes
         .build();
     unsafe {
