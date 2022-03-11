@@ -2,8 +2,12 @@ import pyudev
 
 print("Scan udev for usb tty devices")
 context = pyudev.Context()
-for device in context.list_devices(ID_BUS='usb'):
+for device in context.list_devices(ID_BUS='usb', SUBSYSTEM='tty'):
     properties = dict(device.properties)
+
+    if 'DEVNAME' not in properties or not properties['DEVNAME'].startswith("/dev/ttyACM"):
+        continue
+
     print("-------------------------")
     if 'ID_BUS' in properties:
         print(f" - ID_BUS:              {properties['ID_BUS']}")    

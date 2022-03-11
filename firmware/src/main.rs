@@ -170,18 +170,11 @@ fn main() -> ! {
 unsafe fn USBCTRL_IRQ() {
     use core::sync::atomic::{AtomicBool, Ordering};
 
-    /// Note whether we've already printed the "hello" message.
-    static SAID_HELLO: AtomicBool = AtomicBool::new(false);
 
     // Grab the global objects. This is OK as we only access them under interrupt.
     let usb_dev = USB_DEVICE.as_mut().unwrap();
     let serial = USB_SERIAL.as_mut().unwrap();
 
-    // Say hello exactly once on start-up
-    if !SAID_HELLO.load(Ordering::Relaxed) {
-        SAID_HELLO.store(true, Ordering::Relaxed);
-        let _ = serial.write(b"Hello, World!\r\n");
-    }
 
     // Poll the USB driver with all of our supported USB Classes
     if usb_dev.poll(&mut [serial]) {
@@ -195,23 +188,25 @@ unsafe fn USBCTRL_IRQ() {
             }
             Ok(count) => {
 
-                let _ = serial.write(b"Hello!\r\n");
+                let _ = serial.write(b"{ 'debug': 'Hello!' }\r\n");
+            
 
-                // Convert to upper case
-                buf.iter_mut().take(count).for_each(|b| {
-                    b.make_ascii_uppercase();
-                });
+                // // Convert to upper case
+                // buf.iter_mut().take(count).for_each(|b| {
+                //     b.make_ascii_uppercase();
+                // });
 
-                // Send back to the host
-                let mut wr_ptr = &buf[..count];
-                while !wr_ptr.is_empty() {
-                    let _ = serial.write(wr_ptr).map(|len| {
-                        wr_ptr = &wr_ptr[len..];
-                    });
-                }
+                // // Send back to the host
+                // let mut wr_ptr = &buf[..count];
+                // while !wr_ptr.is_empty() {
+                //     let _ = serial.write(wr_ptr).map(|len| {
+                //         wr_ptr = &wr_ptr[len..];
+                //     });
+                // }
             }
         }
     }
 }
 
 // End of file
+

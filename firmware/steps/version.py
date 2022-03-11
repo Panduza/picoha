@@ -18,17 +18,20 @@ def foo_2(context):
 
     # open serial port
     ser = serial.Serial(context.device_serial_port, 115200)
-    # >>> print(ser.name)         # check which port was really used
-    # >>> ser.write(b'hello')     # write a string
     
+    req = { "cmd": "get_version" }
+    ser.write(b'hello')
+
+    line = ser.readline()
+    print(line, '\n')
+
     # close port
     ser.close()
 
 ###############################################################################
 ###############################################################################
 
-# @then('the serial number must be "{serial}"')
-# def foo_3(context, serial):
-#     properties = dict(context.test_device.properties)
-#     assert properties["ID_SERIAL_SHORT"] == serial
+@then('it must respond with the firmware and hardware version')
+def foo_3(context):
+    pass
 
