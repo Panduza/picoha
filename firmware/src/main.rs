@@ -59,7 +59,7 @@ static mut USB_BUS: Option<UsbBusAllocator<hal::usb::UsbBus>> = None;
 static mut USB_SERIAL: Option<SerialPort<hal::usb::UsbBus>> = None;
 
 
-
+use const_queue::ConstQueue;
 
 use heapless::consts::*;
 use serde::{Serialize, Deserialize};
@@ -73,6 +73,11 @@ struct Point {
 }
 
 
+
+static mut qqq: Option<ConstQueue::<[u8; 200], 3>> = None;
+
+
+
 /// Entry point to our bare-metal application.
 ///
 /// The `#[entry]` macro ensures the Cortex-M start-up code calls this function
@@ -82,6 +87,11 @@ struct Point {
 /// infinite loop.
 #[entry]
 fn main() -> ! {
+
+    unsafe {
+        qqq = Some( ConstQueue::<[u8; 200], 3>::new() );
+    }
+
     // Grab our singleton objects
     let mut pac = pac::Peripherals::take().unwrap();
     let core = pac::CorePeripherals::take().unwrap();
@@ -167,9 +177,21 @@ fn main() -> ! {
     let mut led_pin = pins.led.into_push_pull_output();
 
 
+    // let mut q = ConstQueue::<i32, 3>::new();
+    // let _ = q.push(10);
+    // let _ = q.push(20);
+    // assert!(q.pop().unwrap() == 10);
+    // assert!(q.pop().unwrap() == 20);
+
 
     // Blink the LED at 1 Hz
     loop {
+        cortex_m::interrupt::free(|_| {
+            unsafe { 
+                // COUNTER += 1 
+            };
+        });
+
         led_pin.set_high().unwrap();
         delay.delay_ms(500);
         led_pin.set_low().unwrap();
