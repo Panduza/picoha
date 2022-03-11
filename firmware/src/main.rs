@@ -58,6 +58,21 @@ static mut USB_BUS: Option<UsbBusAllocator<hal::usb::UsbBus>> = None;
 /// The USB Serial Device Driver (shared with the interrupt).
 static mut USB_SERIAL: Option<SerialPort<hal::usb::UsbBus>> = None;
 
+
+
+
+use heapless::consts::*;
+use serde::{Serialize, Deserialize};
+use serde_json_core;
+
+
+#[derive(Serialize, Deserialize, Debug)]
+struct Point {
+    x: i32,
+    y: i32,
+}
+
+
 /// Entry point to our bare-metal application.
 ///
 /// The `#[entry]` macro ensures the Cortex-M start-up code calls this function
@@ -151,6 +166,8 @@ fn main() -> ! {
     // Set the LED to be an output
     let mut led_pin = pins.led.into_push_pull_output();
 
+
+
     // Blink the LED at 1 Hz
     loop {
         led_pin.set_high().unwrap();
@@ -160,6 +177,10 @@ fn main() -> ! {
     }
 }
 
+
+
+
+
 /// This function is called whenever the USB Hardware generates an Interrupt
 /// Request.
 ///
@@ -168,12 +189,16 @@ fn main() -> ! {
 #[allow(non_snake_case)]
 #[interrupt]
 unsafe fn USBCTRL_IRQ() {
-    use core::sync::atomic::{AtomicBool, Ordering};
-
+    // use core::sync::atomic::{AtomicBool, Ordering};
 
     // Grab the global objects. This is OK as we only access them under interrupt.
     let usb_dev = USB_DEVICE.as_mut().unwrap();
     let serial = USB_SERIAL.as_mut().unwrap();
+
+
+    let point = Point { x: 1, y: 2 };
+    let serialized = serde_json_core::to_string::<Point, 100>(&point);
+    
 
 
     // Poll the USB driver with all of our supported USB Classes
@@ -188,8 +213,15 @@ unsafe fn USBCTRL_IRQ() {
             }
             Ok(count) => {
 
-                let _ = serial.write(b"{ 'debug': 'Hello!' }\r\n");
-            
+                // let _ = serial.write(b"{ \"debug\": \"Hello!\" }\r\n");
+
+                let _ = serial.write(serialized.unwrap().as_bytes());
+                serial.write(b"\r\n");
+
+                
+                
+
+                // serde_json_core::ser::to_string();
 
                 // // Convert to upper case
                 // buf.iter_mut().take(count).for_each(|b| {

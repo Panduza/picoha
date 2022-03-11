@@ -1,4 +1,5 @@
 import os
+import json
 import serial
 import pyudev
 from xdocz import *
@@ -23,7 +24,9 @@ def foo_2(context):
     ser.write(b'hello')
 
     line = ser.readline()
-    print(line, '\n')
+    print(line, "\n")
+    data = json.loads(line)
+    print(data, "\n")
 
     # close port
     ser.close()
