@@ -62,6 +62,11 @@ static mut USB_BUS: Option<UsbBusAllocator<hal::usb::UsbBus>> = None;
 static mut USB_SERIAL: Option<SerialPort<hal::usb::UsbBus>> = None;
 
 
+// I2C HAL traits & Types.
+use embedded_hal::blocking::i2c::{Operation, Read, Transactional, Write, WriteRead};
+
+
+
 // use heapless::consts::*;
 use serde::{Serialize, Deserialize};
 use serde_json_core;
@@ -86,6 +91,21 @@ static mut CmdBuffer: [u8; 100] = [0; 100];
 static mut CmdBufferIdx: u32 = 0;
 
 
+/// convert int n into a u8 buffer buf
+fn base_10_bytes(mut n: u8, buf: &mut [u8]) -> &[u8] {
+    if n == 0 {
+        return b"0";
+    }
+    let mut i = 0;
+    while n > 0 {
+        buf[i] = (n % 10) as u8 + b'0';
+        n /= 10;
+        i += 1;
+    }
+    let slice = &mut buf[..i];
+    slice.reverse();
+    &*slice
+}
 /// Entry point to our bare-metal application.
 ///
 /// The `#[entry]` macro ensures the Cortex-M start-up code calls this function
@@ -182,24 +202,58 @@ fn main() -> ! {
     let mut led_pin = pins.led.into_push_pull_output();
 
 
+
+    // Declare I2C
+    // Configure two pins as being I²C, not GPIO
+    let sda_pin = pins.gpio20.into_mode::<hal::gpio::FunctionI2C>();
+    let scl_pin = pins.gpio21.into_mode::<hal::gpio::FunctionI2C>();
+
+    // Create the I²C driver, using the two pre-configured pins. This will fail
+    // at compile time if the pins are in the wrong mode, or if this I²C
+    // peripheral isn't available on these pins!
+    let mut i2c = hal::I2C::i2c0(
+        pac.I2C0,
+        sda_pin,
+        scl_pin,
+        100.kHz(),
+        &mut pac.RESETS,
+        clocks.peripheral_clock,
+    );
+
+
+    let mut readbuf: [u8; 1] = [0; 1];
+    i2c.write_read(0x53, &[0], &mut readbuf).unwrap();
+    // 0x00 =>  229 (11100101)
+
+
     // NOTE(unsafe) beware of aliasing the `consumer` end point
     let mut consumer = unsafe { QQQ.split().1 };
 
     // Blink the LED at 1 Hz
     loop {
-        // `dequeue` is a lockless operation
-        let cmd = consumer.dequeue();
-        if cmd != None {
-            {
-                cortex_m::interrupt::free(|_| {
-                    unsafe {
-                        let serial = USB_SERIAL.as_mut().unwrap();
-                        let _ = serial.write(b"{ \"debug\": \"looop\" }\r\n");
-                    }
-                })
-            }
-        }
+        // // `dequeue` is a lockless operation
+        // let cmd = consumer.dequeue();
+        // if cmd != None {
+        //     {
+        //         cortex_m::interrupt::free(|_| {
+        //             unsafe {
+        //                 let serial = USB_SERIAL.as_mut().unwrap();
+        //                 let _ = serial.write(b"{ \"debug\": \"looop\" }\r\n");
+        //             }
+        //         })
+        //     }
+        // }
             
+
+        let mut bbbb2=[0u8;4];
+        let oo8 = base_10_bytes(readbuf[0], &mut bbbb2);
+        cortex_m::interrupt::free(|_| {
+            unsafe {
+                let serial = USB_SERIAL.as_mut().unwrap();
+                serial.write(&oo8).unwrap();
+            }
+        });
+
 
         led_pin.set_high().unwrap();
         delay.delay_ms(500);
@@ -209,21 +263,7 @@ fn main() -> ! {
 }
 
 
-/// convert int n into a u8 buffer buf
-fn base_10_bytes(mut n: u8, buf: &mut [u8]) -> &[u8] {
-    if n == 0 {
-        return b"0";
-    }
-    let mut i = 0;
-    while n > 0 {
-        buf[i] = (n % 10) as u8 + b'0';
-        n /= 10;
-        i += 1;
-    }
-    let slice = &mut buf[..i];
-    slice.reverse();
-    &*slice
-}
+
 
 
 /// This function is called whenever the USB Hardware generates an Interrupt
@@ -301,7 +341,7 @@ unsafe fn USBCTRL_IRQ() {
                     if c == '\r' as u8 || c == '\n' as u8 {
                         let _ = serial.write(b"{ \"debug\": \"Hello return\" }\r\n");
 
-                        producer.enqueue(CmdBuffer).ok().unwrap();
+                        // producer.enqueue(CmdBuffer).ok().unwrap();
                     }
                     
                 }
