@@ -1,5 +1,5 @@
 [package]
-name = "pipico-aardvark"
+name = "aardvark-rp2040-clone"
 version = "0.1.0"
 edition = "2021"
 
@@ -12,7 +12,7 @@ cortex-m-rt = "0.7.0"
 # Rp pico support
 rp2040-boot2 = { version = "0.2.0", optional = true }
 rp2040-hal = "0.4.0"
-rp-pico = "0.2.0"
+rp-pico = "0.3.0"
 
 # Embedded libs
 embedded-time = "0.12.0"
