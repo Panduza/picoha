@@ -1,21 +1,6 @@
-//! # Pico USB Serial (with Interrupts) Example
-//!
-//! Creates a USB Serial device on a Pico board, with the USB driver running in
-//! the USB interrupt.
-//!
-//! This will create a USB Serial device echoing anything it receives. Incoming
-//! ASCII characters are converted to upercase, so you can tell it is working
-//! and not just local-echo!
-//!
-//! See the `Cargo.toml` file for Copyright and licence details.
 
 #![no_std]
 #![no_main]
-
-mod config;
-
-// Define
-mod panic;
 
 // The macro for our start-up function
 use cortex_m_rt::entry;
@@ -43,6 +28,7 @@ use rp_pico::hal::pac;
 // A shorter alias for the Hardware Abstraction Layer, which provides
 // higher-level drivers.
 use rp_pico::hal;
+use rp_pico::hal::gpio;
 
 // USB Device support
 use usb_device::{class_prelude::*, prelude::*};
@@ -88,8 +74,12 @@ mod platform;
 
 // ============================================================================
 
+type TypePinLed = gpio::Pin<gpio::bank0::Gpio25, gpio::Output<gpio::PushPull>>;
+
+// ============================================================================
+
 /// Application object
-static mut APP_INSTANCE: Option<application::HostAdapter> = None;
+static mut APP_INSTANCE: Option<application::HostAdapter<TypePinLed>> = None;
 
 /// USB bus allocator
 static mut USB_BUS: Option<UsbBusAllocator<hal::usb::UsbBus>> = None;
@@ -149,35 +139,16 @@ unsafe fn main() -> ! {
     // reference exists!
     let bus_ref = unsafe { USB_BUS.as_ref().unwrap() };
 
-    // Set up the USB Communications Class Device driver
-    // let serial = SerialPort::new(bus_ref);
-    unsafe {
-        // USB_SERIAL = Some(serial);
-        USB_SERIAL = Some(platform::init_usb_serial(bus_ref));
-    }
-
-    // Create a USB device with a fake VID and PID
-    let usb_dev = UsbDeviceBuilder::new(
-        bus_ref,
-        UsbVidPid(config::USB_MANUFACTURER_ID, config::USB_PRODUCT_ID),
-    )
-    .manufacturer(config::USB_MANUFACTURER_NAME)
-    .product(config::USB_PRODUCT_NAME)
-    .serial_number(config::USB_SERIAL_NUMBER)
-    .device_class(2) // from: https://www.usb.org/defined-class-codes
-    .build();
-    unsafe {
-        // Note (safety): This is safe as interrupts haven't been started yet
-        USB_DEVICE = Some(usb_dev);
-    }
+    USB_SERIAL = Some(platform::init_usb_serial(bus_ref));
+    USB_DEVICE = Some(platform::init_usb_device(bus_ref));
 
     // Enable the USB interrupt
-    unsafe {
-        pac::NVIC::unmask(hal::pac::Interrupt::USBCTRL_IRQ);
-    };
+    pac::NVIC::unmask(hal::pac::Interrupt::USBCTRL_IRQ);
 
+    //
     // No more USB code after this point in main! We can do anything we want in
-    // here since USB is handled in the interrupt - let's blink an LED!
+    // here since USB is handled in the interrupt
+    //
 
     // The single-cycle I/O block controls our GPIO pins
     let sio = hal::Sio::new(pac.SIO);
@@ -227,6 +198,8 @@ unsafe fn main() -> ! {
     app.run_forever();
 }
 
+// ============================================================================
+
 /// This function is called whenever the USB Hardware generates an Interrupt
 /// Request.
 ///
@@ -238,5 +211,17 @@ unsafe fn USBCTRL_IRQ() {
     let app = APP_INSTANCE.as_mut().unwrap();
     app.usbctrl_irq();
 }
+
+// ============================================================================
+
+// PANIC MANAGEMENT
+use core::panic::PanicInfo;
+#[panic_handler]
+unsafe fn panic(_info: &PanicInfo) -> ! {
+    let app = APP_INSTANCE.as_mut().unwrap();
+    app.panic_handler();
+}
+
+// ============================================================================
 
 // End of file
