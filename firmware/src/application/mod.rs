@@ -15,6 +15,22 @@ use usb_device::prelude::UsbVidPid;
 // USB Communications Class Device support
 use usbd_serial::SerialPort;
 
+
+use serde::{Deserialize, Serialize};
+use serde_json_core;
+
+
+use heapless::Vec;
+
+
+#[derive(Serialize, Deserialize, Debug)]
+struct Reqqq {
+    cmd: Vec::<u8, 64>,
+}
+
+
+use numtoa::NumToA;
+
 // ============================================================================
 
 mod buffer;
@@ -37,7 +53,7 @@ pub struct HostAdapter<OP> where OP: OutputPin {
     usb_serial: &'static mut SerialPort<'static, hal::usb::UsbBus>,
 
     ///
-    usb_buffer: UsbBuffer<2048>
+    usb_buffer: UsbBuffer<1024>
 }
 
 // ============================================================================
@@ -67,12 +83,34 @@ impl<OP> HostAdapter<OP> where OP: OutputPin {
 
         loop {
 
+            let mut tmp_buf = [0u8; 20];
+
             match self.usb_buffer.get_command() {
                 None => {
 
                 }
                 Some(cmd) => {
+                    let _ = self.usb_serial.write(&cmd.0[0..cmd.1]);
+                    // let _ = self.usb_serial.write(cmd.1.numtoa(10, &mut tmp_buf));
+                    let _ = self.usb_serial.write(b"!!! coo\r\n");
 
+
+                    match serde_json_core::de::from_slice::<Reqqq>(&cmd.0[0..cmd.1]) {
+                        Err(_e) => {
+                            // Do nothing
+                            let _ = self.usb_serial.write(b"erro\n");
+
+                        }
+                        Ok(cmd) => {
+                            let _ = self.usb_serial.write(cmd.0.cmd.len().numtoa(10, &mut tmp_buf));
+                            let _ = self.usb_serial.write(b"\n");
+
+                        }
+                    }
+
+                    
+                    // 
+                    
                 }
             }
 

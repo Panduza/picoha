@@ -36,15 +36,6 @@ use usb_device::{class_prelude::*, prelude::*};
 // USB Communications Class Device support
 use usbd_serial::SerialPort;
 
-// /// The USB Device Driver (shared with the interrupt).
-// static mut USB_DEVICE: Option<UsbDevice<hal::usb::UsbBus>> = None;
-
-// /// The USB Bus Driver (shared with the interrupt).
-// static mut USB_BUS: Option<UsbBusAllocator<hal::usb::UsbBus>> = None;
-
-// /// The USB Serial Device Driver (shared with the interrupt).
-// static mut USB_SERIAL: Option<SerialPort<hal::usb::UsbBus>> = None;
-
 // I2C HAL traits & Types.
 use embedded_hal::blocking::i2c::{Operation, Read, Transactional, Write, WriteRead};
 
@@ -186,8 +177,6 @@ unsafe fn main() -> ! {
     i2c.write_read(0x53, &[0], &mut readbuf).unwrap();
     // 0x00 =>  229 (11100101)
 
-    // NOTE(unsafe) beware of aliasing the `consumer` end point
-    // let mut consumer = unsafe { QQQ.split().1 };
 
     // Init the application and start it
     APP_INSTANCE = Some(application::HostAdapter::new(
