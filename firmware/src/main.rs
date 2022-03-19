@@ -145,6 +145,10 @@ unsafe fn main() -> ! {
     // Enable the USB interrupt
     pac::NVIC::unmask(hal::pac::Interrupt::USBCTRL_IRQ);
 
+    // // Disable the USB interrupt
+    // pac::NVIC::mask(hal::pac::Interrupt::USBCTRL_IRQ);
+
+
     //
     // No more USB code after this point in main! We can do anything we want in
     // here since USB is handled in the interrupt

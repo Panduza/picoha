@@ -18,7 +18,7 @@ use usbd_serial::SerialPort;
 // ============================================================================
 
 mod buffer;
-use buffer::CommandBuffer;
+use buffer::UsbBuffer;
 
 // ============================================================================
 
@@ -37,7 +37,7 @@ pub struct HostAdapter<OP> where OP: OutputPin {
     usb_serial: &'static mut SerialPort<'static, hal::usb::UsbBus>,
 
     ///
-    cmd_buffer: CommandBuffer
+    cmd_buffer: UsbBuffer<2048>
 }
 
 // ============================================================================
@@ -56,7 +56,7 @@ impl<OP> HostAdapter<OP> where OP: OutputPin {
             led_pin: led_pin,
             usb_device: usb_dev,
             usb_serial: usb_ser,
-            cmd_buffer: CommandBuffer::new()
+            cmd_buffer: UsbBuffer::new()
         }
     }
 
