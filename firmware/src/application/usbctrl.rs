@@ -31,9 +31,10 @@ impl<OP> HostAdapter<OP> where OP: OutputPin {
 
         // Poll the USB driver with all of our supported USB Classes
         if self.usb_device.poll(&mut [self.usb_serial]) {
-            let mut buf222 = [0u8; 128];
-            let mut buf = [0u8; 128];
-            match self.usb_serial.read(&mut buf) {
+            
+            // Buffer to read the serial port
+            let mut serial_buffer = [0u8; 512];
+            match self.usb_serial.read(&mut serial_buffer) {
                 Err(_e) => {
                     // Do nothing
                 }
@@ -42,30 +43,25 @@ impl<OP> HostAdapter<OP> where OP: OutputPin {
                 }
                 Ok(count) => {
 
-                    // buf222[2..count].copy_from_slice(&buf[0..count]);
-                    
-                    // buf222.rotate_left(count);
+                    self.usb_buffer.load(&serial_buffer, count);
 
 
-                    // static mut CmdBuffer: [u8; 100] = [0; 100];
-                    // static mut CmdBufferIdx: u32 = 0;
-                    // let _ = self.usb_serial.write(serialized.unwrap().as_bytes());
 
                     for i in 0..count {
-                        let c = buf[i];
+                        let c = serial_buffer[i];
 
-                        let mut bbbb = [0u8; 4];
-                        let oo = base_10_bytes(c, &mut bbbb);
+                        // let mut bbbb = [0u8; 4];
+                        // let oo = base_10_bytes(c, &mut bbbb);
 
-                        let mut bbbb2 = [0u8; 4];
-                        let oo8 = base_10_bytes('\n' as u8, &mut bbbb2);
+                        // let mut bbbb2 = [0u8; 4];
+                        // let oo8 = base_10_bytes('\n' as u8, &mut bbbb2);
 
-                        self.usb_serial.write(&[c]).unwrap();
-                        self.usb_serial.write(b" ").unwrap();
-                        self.usb_serial.write(&oo).unwrap();
-                        self.usb_serial.write(b" ").unwrap();
-                        self.usb_serial.write(&oo8).unwrap();
-                        self.usb_serial.write(b" \r\n").unwrap();
+                        // self.usb_serial.write(&[c]).unwrap();
+                        // self.usb_serial.write(b" ").unwrap();
+                        // self.usb_serial.write(&oo).unwrap();
+                        // self.usb_serial.write(b" ").unwrap();
+                        // self.usb_serial.write(&oo8).unwrap();
+                        // self.usb_serial.write(b" \r\n").unwrap();
 
                         if c == 'z' as u8 {
                             let _ = self.usb_serial.write(b"{ \"debug\": \"Hello!\" }\r\n");

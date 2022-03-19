@@ -37,7 +37,7 @@ pub struct HostAdapter<OP> where OP: OutputPin {
     usb_serial: &'static mut SerialPort<'static, hal::usb::UsbBus>,
 
     ///
-    cmd_buffer: UsbBuffer<2048>
+    usb_buffer: UsbBuffer<2048>
 }
 
 // ============================================================================
@@ -56,18 +56,30 @@ impl<OP> HostAdapter<OP> where OP: OutputPin {
             led_pin: led_pin,
             usb_device: usb_dev,
             usb_serial: usb_ser,
-            cmd_buffer: UsbBuffer::new()
+            usb_buffer: UsbBuffer::new()
         }
     }
 
     /// Main loop of the main task of the application
     pub fn run_forever(&mut self) -> ! {
-        let obj = self;
+
+        // self.usb_serial.write(b"{ \"log\": \"+++ firmware start +++\" }\r\n").ok();
+
         loop {
-            obj.led_pin.set_high().ok();
-            obj.delay.delay_ms(500);
-            obj.led_pin.set_low().ok();
-            obj.delay.delay_ms(500);
+
+            match self.usb_buffer.get_command() {
+                None => {
+
+                }
+                Some(cmd) => {
+
+                }
+            }
+
+            self.led_pin.set_high().ok();
+            self.delay.delay_ms(500);
+            self.led_pin.set_low().ok();
+            self.delay.delay_ms(500);
         }
     }
 
