@@ -3,14 +3,14 @@
 // HAL
 use embedded_hal::digital::v2::OutputPin;
 use rp_pico::hal;
-use rp_pico::hal::gpio;
+// use rp_pico::hal::gpio;
 
 // USB crates
-use rp_pico::hal::usb::UsbBus;
-use usb_device::class_prelude::UsbBusAllocator;
+// use rp_pico::hal::usb::UsbBus;
+// use usb_device::class_prelude::UsbBusAllocator;
 use usb_device::prelude::UsbDevice;
-use usb_device::prelude::UsbDeviceBuilder;
-use usb_device::prelude::UsbVidPid;
+// use usb_device::prelude::UsbDeviceBuilder;
+// use usb_device::prelude::UsbVidPid;
 
 // USB Communications Class Device support
 use usbd_serial::SerialPort;
@@ -18,21 +18,19 @@ use usbd_serial::SerialPort;
 use serde::{Deserialize, Serialize};
 use serde_json_core;
 
-use heapless::Vec;
+// use heapless::Vec;
 
 use base64;
 
 // I2C HAL traits & Types.
-use embedded_hal::blocking::i2c::{Operation, Read, Transactional, Write, WriteRead};
+// use embedded_hal::blocking::i2c::{Operation, Read, Transactional, Write, WriteRead};
+use embedded_hal::blocking::i2c::{WriteRead};
 
 #[derive(Serialize, Deserialize, Debug)]
-struct Reqqq {
-    cmd: u8,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct Reqqq2<'a> {
+struct Command<'a> {
     cmd: &'a str,
+    data: &'a str,
+    size: usize,
 }
 
 use numtoa::NumToA;
@@ -107,7 +105,7 @@ where
                 Some(cmd_end_index) => {
                     let cmd_slice_ref = &cmd_buffer[0..cmd_end_index];
 
-                    match serde_json_core::de::from_slice::<Reqqq2>(cmd_slice_ref) {
+                    match serde_json_core::de::from_slice::<Command>(cmd_slice_ref) {
                         Err(_e) => {
                             // Do nothing
                             let _ = self.usb_serial.write(b"error parsing json command\n");
@@ -123,15 +121,42 @@ where
                             let _ = self.usb_serial.write(cmd.0.cmd.as_bytes());
                             let _ = self.usb_serial.write(b"\n");
 
-                            match cmd.0.cmd {
-                                "twi_m_wr"=> {
+                            let data = &cmd.0;
+                            match data.cmd {
+                                "twi_m_wr" => {
+                                    // data.data
 
-                                    // let mut readbuf: [u8; 1] = [0; 1];
-                                    // self.i2c.write_read(0x53, &[0], &mut readbuf).ok();
                                     // // 0x00 =>  229 (11100101)
                                     // let _ = self.usb_serial.write(readbuf[0].numtoa(10, &mut tmp_buf));
                                     // let _ = self.usb_serial.write(b"\n");
-        
+
+                                    let mut write_data = [0u8; 512];
+                                    match base64::decode_config_slice(
+                                        &data.data,
+                                        base64::STANDARD,
+                                        &mut write_data,
+                                    ) {
+                                        Err(_e) => {}
+                                        Ok(count) => {
+                                            let mut readbuf = [0u8; 512];
+                                            self.i2c
+                                                .write_read(
+                                                    0x53,
+                                                    &write_data[..count],
+                                                    &mut readbuf[..data.size],
+                                                )
+                                                .ok();
+
+                                            self.usb_serial
+                                                .write(write_data[0].numtoa(10, &mut tmp_buf))
+                                                .ok();
+                                            self.usb_serial.write(b" c\n").ok();
+                                            self.usb_serial
+                                                .write(readbuf[0].numtoa(10, &mut tmp_buf))
+                                                .ok();
+                                            self.usb_serial.write(b" c\n").ok();
+                                        }
+                                    }
                                 }
                                 default => {
                                     self.usb_serial.write(b"{\"log\": \"").ok();
@@ -140,34 +165,16 @@ where
                                 }
                             }
 
-
-
-                            let s = b"hello internet!";
-                            let mut buf = [0u8; 150];
-                            // make sure we'll have a slice big enough for base64 + padding
-                            // buf.resize(s.len() * 4 / 3 + 4, 0);
-                            let bytes_written =
-                                base64::encode_config_slice(s, base64::STANDARD, &mut buf);
-                            let _ = self.usb_serial.write(&buf[0..bytes_written]);
-                            let _ = self.usb_serial.write(b"\n");
+                            // let s = b"hello internet!";
+                            // let mut buf = [0u8; 150];
+                            // // make sure we'll have a slice big enough for base64 + padding
+                            // // buf.resize(s.len() * 4 / 3 + 4, 0);
+                            // let bytes_written =
+                            //     base64::encode_config_slice(s, base64::STANDARD, &mut buf);
+                            // let _ = self.usb_serial.write(&buf[0..bytes_written]);
+                            // let _ = self.usb_serial.write(b"\n");
                         }
                     }
-
-                    // match serde_json_core::de::from_slice::<Reqqq2>( b"{\"cmd\": \"pok\", \"cmd2\": \"pok2\"}\n" ) {
-                    //     Err(_e) => {
-                    //         // Do nothing
-                    //         let _ = self.usb_serial.write(b"erro\n");
-
-                    //     }
-                    //     Ok(cmd) => {
-                    //         // let _ = self.usb_serial.write(cmd.0.cmd.len().numtoa(10, &mut tmp_buf));
-                    //         let _ = self.usb_serial.write(cmd.0.cmd.as_bytes());
-                    //         let _ = self.usb_serial.write(b"\n");
-
-                    //     }
-                    // }
-
-                    //
                 }
             }
 

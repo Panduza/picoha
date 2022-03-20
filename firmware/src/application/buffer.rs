@@ -1,8 +1,6 @@
 use rp_pico::hal;
 use rp_pico::hal::pac;
 
-pub struct BufferError;
-
 // ============================================================================
 
 /// Buffer to manage usb data (safe with usb interrupts)

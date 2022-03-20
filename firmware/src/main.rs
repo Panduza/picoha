@@ -1,4 +1,3 @@
-
 #![no_std]
 #![no_main]
 
@@ -7,9 +6,6 @@ use cortex_m_rt::entry;
 
 // The macro for marking our interrupt functions
 use rp_pico::hal::pac::interrupt;
-
-// GPIO traits
-use embedded_hal::digital::v2::OutputPin;
 
 // Time handling traits
 use embedded_time::rate::*;
@@ -36,11 +32,6 @@ use usb_device::{class_prelude::*, prelude::*};
 // USB Communications Class Device support
 use usbd_serial::SerialPort;
 
-// I2C HAL traits & Types.
-use embedded_hal::blocking::i2c::{Operation, Read, Transactional, Write, WriteRead};
-
-
-
 // ============================================================================
 
 mod application;
@@ -50,7 +41,13 @@ mod platform;
 
 type TypePinLed = gpio::Pin<gpio::bank0::Gpio25, gpio::Output<gpio::PushPull>>;
 
-type TypeI2CInterface = hal::I2C<pac::I2C0, (hal::gpio::Pin<hal::gpio::bank0::Gpio20, hal::gpio::Function<hal::gpio::I2C>>, hal::gpio::Pin<hal::gpio::bank0::Gpio21, hal::gpio::Function<hal::gpio::I2C>>)>;
+type TypeI2CInterface = hal::I2C<
+    pac::I2C0,
+    (
+        hal::gpio::Pin<hal::gpio::bank0::Gpio20, hal::gpio::Function<hal::gpio::I2C>>,
+        hal::gpio::Pin<hal::gpio::bank0::Gpio21, hal::gpio::Function<hal::gpio::I2C>>,
+    ),
+>;
 
 // ============================================================================
 
@@ -105,15 +102,13 @@ unsafe fn main() -> ! {
         true,
         &mut pac.RESETS,
     ));
-    unsafe {
-        // Note (safety): This is safe as interrupts haven't been started yet
-        USB_BUS = Some(usb_bus);
-    }
+    // Note (safety): This is safe as interrupts haven't been started yet
+    USB_BUS = Some(usb_bus);
 
     // Grab a reference to the USB Bus allocator. We are promising to the
     // compiler not to take mutable access to this global variable whilst this
     // reference exists!
-    let bus_ref = unsafe { USB_BUS.as_ref().unwrap() };
+    let bus_ref = USB_BUS.as_ref().unwrap();
 
     USB_SERIAL = Some(platform::init_usb_serial(bus_ref));
     USB_DEVICE = Some(platform::init_usb_device(bus_ref));
@@ -145,7 +140,7 @@ unsafe fn main() -> ! {
     // Create the I²C driver, using the two pre-configured pins. This will fail
     // at compile time if the pins are in the wrong mode, or if this I²C
     // peripheral isn't available on these pins!
-    let mut i2c = hal::I2C::i2c0(
+    let i2c = hal::I2C::i2c0(
         pac.I2C0,
         sda_pin,
         scl_pin,
@@ -153,8 +148,6 @@ unsafe fn main() -> ! {
         &mut pac.RESETS,
         clocks.peripheral_clock,
     );
-
-
 
     // Init the application and start it
     APP_INSTANCE = Some(application::HostAdapter::new(
