@@ -28,7 +28,7 @@ impl<const CAPACITY: usize> UsbBuffer<CAPACITY> {
     /// Load the buffer from usb serial
     pub fn load(&mut self, src: &[u8], count: usize) {
         if self.size + count < CAPACITY {
-            self.buffer[self.size..self.size+count].copy_from_slice(&src[0..count]);
+            self.buffer[self.size..self.size + count].copy_from_slice(&src[0..count]);
             self.size += count;
         }
     }

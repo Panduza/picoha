@@ -24,7 +24,8 @@ use base64;
 
 // I2C HAL traits & Types.
 // use embedded_hal::blocking::i2c::{Operation, Read, Transactional, Write, WriteRead};
-use embedded_hal::blocking::i2c::{WriteRead};
+use embedded_hal::blocking::i2c::Write;
+use embedded_hal::blocking::i2c::WriteRead;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct Command<'a> {
@@ -72,7 +73,7 @@ where
 impl<OP, IIC> HostAdapter<OP, IIC>
 where
     OP: OutputPin,
-    IIC: WriteRead,
+    IIC: WriteRead //, Write
 {
     /// Application intialization
     pub fn new(
@@ -123,13 +124,30 @@ where
 
                             let data = &cmd.0;
                             match data.cmd {
+                                
+                                "twi_m_w" => {
+                                    // let mut write_data = [0u8; 512];
+                                    // match base64::decode_config_slice(
+                                    //     &data.data,
+                                    //     base64::STANDARD,
+                                    //     &mut write_data,
+                                    // ) {
+                                    //     Err(_e) => {}
+                                    //     Ok(count) => {
+                                    //         let mut readbuf = [0u8; 512];
+                                    //         self.i2c
+                                    //             .write(
+                                    //                 0x53,
+                                    //                 &write_data[..count],
+                                    //                 // &mut readbuf[..data.size],
+                                    //             )
+                                    //             .ok();
+                                    //     }
+                                    // }
+                            
+                                }
                                 "twi_m_wr" => {
-                                    // data.data
-
-                                    // // 0x00 =>  229 (11100101)
-                                    // let _ = self.usb_serial.write(readbuf[0].numtoa(10, &mut tmp_buf));
-                                    // let _ = self.usb_serial.write(b"\n");
-
+                                
                                     let mut write_data = [0u8; 512];
                                     match base64::decode_config_slice(
                                         &data.data,
@@ -147,14 +165,14 @@ where
                                                 )
                                                 .ok();
 
-                                            self.usb_serial
-                                                .write(write_data[0].numtoa(10, &mut tmp_buf))
-                                                .ok();
-                                            self.usb_serial.write(b" c\n").ok();
-                                            self.usb_serial
-                                                .write(readbuf[0].numtoa(10, &mut tmp_buf))
-                                                .ok();
-                                            self.usb_serial.write(b" c\n").ok();
+                                            // self.usb_serial
+                                            //     .write(write_data[0].numtoa(10, &mut tmp_buf))
+                                            //     .ok();
+                                            // self.usb_serial.write(b" c\n").ok();
+                                            // self.usb_serial
+                                            //     .write(readbuf[0].numtoa(10, &mut tmp_buf))
+                                            //     .ok();
+                                            // self.usb_serial.write(b" c\n").ok();
                                         }
                                     }
                                 }
