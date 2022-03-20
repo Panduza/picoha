@@ -39,24 +39,7 @@ use usbd_serial::SerialPort;
 // I2C HAL traits & Types.
 use embedded_hal::blocking::i2c::{Operation, Read, Transactional, Write, WriteRead};
 
-// use heapless::consts::*;
-use serde::{Deserialize, Serialize};
-use serde_json_core;
 
-#[derive(Serialize, Deserialize, Debug)]
-struct Point {
-    x: i32,
-    y: i32,
-}
-
-use heapless::spsc::Queue;
-
-// Notice, type signature needs to be explicit for now.
-// (min_const_eval, does not allow for default type assignments)
-static mut QQQ: Queue<[u8; 100], 4> = Queue::new();
-
-static mut CmdBuffer: [u8; 100] = [0; 100];
-static mut CmdBufferIdx: u32 = 0;
 
 // ============================================================================
 
@@ -67,10 +50,12 @@ mod platform;
 
 type TypePinLed = gpio::Pin<gpio::bank0::Gpio25, gpio::Output<gpio::PushPull>>;
 
+type TypeI2CInterface = hal::I2C<pac::I2C0, (hal::gpio::Pin<hal::gpio::bank0::Gpio20, hal::gpio::Function<hal::gpio::I2C>>, hal::gpio::Pin<hal::gpio::bank0::Gpio21, hal::gpio::Function<hal::gpio::I2C>>)>;
+
 // ============================================================================
 
 /// Application object
-static mut APP_INSTANCE: Option<application::HostAdapter<TypePinLed>> = None;
+static mut APP_INSTANCE: Option<application::HostAdapter<TypePinLed, TypeI2CInterface>> = None;
 
 /// USB bus allocator
 static mut USB_BUS: Option<UsbBusAllocator<hal::usb::UsbBus>> = None;
@@ -136,10 +121,6 @@ unsafe fn main() -> ! {
     // Enable the USB interrupt
     pac::NVIC::unmask(hal::pac::Interrupt::USBCTRL_IRQ);
 
-    // // Disable the USB interrupt
-    // pac::NVIC::mask(hal::pac::Interrupt::USBCTRL_IRQ);
-
-
     //
     // No more USB code after this point in main! We can do anything we want in
     // here since USB is handled in the interrupt
@@ -173,15 +154,13 @@ unsafe fn main() -> ! {
         clocks.peripheral_clock,
     );
 
-    let mut readbuf: [u8; 1] = [0; 1];
-    i2c.write_read(0x53, &[0], &mut readbuf).unwrap();
-    // 0x00 =>  229 (11100101)
 
 
     // Init the application and start it
     APP_INSTANCE = Some(application::HostAdapter::new(
         cortex_m::delay::Delay::new(core.SYST, clocks.system_clock.freq().integer()), // Append delay feature to the app
         pins.led.into_push_pull_output(), // Set the led gpio as output
+        i2c,
         USB_DEVICE.as_mut().unwrap(),
         USB_SERIAL.as_mut().unwrap(),
     ));

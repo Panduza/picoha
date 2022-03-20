@@ -35,6 +35,8 @@ serde-json-core = "0.4.0"
 
 numtoa = "0.2.4"
 
+base64 = { version = "0.13.0", default-features = false }
+
 [features]
 boot2 = ["rp2040-boot2"]
 

@@ -7,7 +7,7 @@ use numtoa::NumToA;
 use embedded_hal::digital::v2::OutputPin;
 
 ///
-impl<OP> HostAdapter<OP>
+impl<OP, IIC> HostAdapter<OP, IIC>
 where
     OP: OutputPin,
 {

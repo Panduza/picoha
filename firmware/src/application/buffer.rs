@@ -36,12 +36,12 @@ impl<const CAPACITY: usize> UsbBuffer<CAPACITY> {
     }
 
     ///
-    pub fn get_command(&mut self) -> Option<([u8; CAPACITY], usize)> {
+    pub fn get_command(&mut self, dest: &mut [u8; CAPACITY]) -> Option<usize> {
         // Disable the USB interrupt
         pac::NVIC::mask(hal::pac::Interrupt::USBCTRL_IRQ);
 
         // Init command buffer
-        let mut cmd: Option<([u8; CAPACITY], usize)> = None;
+        let mut cmd: Option<usize> = None;
 
         // Check for a complete command (end with \n or \r)
         match self.buffer[0..self.size]
@@ -57,9 +57,9 @@ impl<const CAPACITY: usize> UsbBuffer<CAPACITY> {
                 // count is the size of the command
                 let count = position + 1;
                 //
-                let mut cmd_buf = [0u8; CAPACITY];
-                cmd_buf[0..position].copy_from_slice(&self.buffer[0..position]);
-                cmd = Some((cmd_buf, count));
+                // let mut cmd_buf = [0u8; CAPACITY];
+                dest[0..position].copy_from_slice(&self.buffer[0..position]);
+                cmd = Some(position);
                 self.buffer.rotate_left(count);
                 self.size -= count;
             }
