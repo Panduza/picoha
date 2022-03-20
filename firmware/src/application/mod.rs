@@ -123,13 +123,25 @@ where
                             let _ = self.usb_serial.write(cmd.0.cmd.as_bytes());
                             let _ = self.usb_serial.write(b"\n");
 
-                            let mut readbuf: [u8; 1] = [0; 1];
-                            self.i2c.write_read(0x53, &[0], &mut readbuf).ok();
-                            // 0x00 =>  229 (11100101)
-                            let _ = self.usb_serial.write(readbuf[0].numtoa(10, &mut tmp_buf));
-                            let _ = self.usb_serial.write(b"\n");
+                            match cmd.0.cmd {
+                                "twi_m_wr"=> {
 
-                            
+                                    // let mut readbuf: [u8; 1] = [0; 1];
+                                    // self.i2c.write_read(0x53, &[0], &mut readbuf).ok();
+                                    // // 0x00 =>  229 (11100101)
+                                    // let _ = self.usb_serial.write(readbuf[0].numtoa(10, &mut tmp_buf));
+                                    // let _ = self.usb_serial.write(b"\n");
+        
+                                }
+                                default => {
+                                    self.usb_serial.write(b"{\"log\": \"").ok();
+                                    self.usb_serial.write(default.as_bytes()).ok();
+                                    self.usb_serial.write(b" command not found\"}\r\n").ok();
+                                }
+                            }
+
+
+
                             let s = b"hello internet!";
                             let mut buf = [0u8; 150];
                             // make sure we'll have a slice big enough for base64 + padding
