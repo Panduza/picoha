@@ -5,10 +5,9 @@ import pyudev
 import serial
 from loguru import logger
 from pza_platform import MetaDriver
-from aardvark_py import *
 
-class DriverAardvarkPicoCloneTwiMaster(MetaDriver):
-    """ Driver Aardvark twi Master
+class DriverPicohaTwiMaster(MetaDriver):
+    """ Driver twi Master
     """
 
     ###########################################################################
@@ -18,7 +17,7 @@ class DriverAardvarkPicoCloneTwiMaster(MetaDriver):
         """ FROM MetaDriver
         """
         return {
-            "compatible": "aapicoclone_twi_master",
+            "compatible": "picoha_twi_master",
             "info": { "type": "twi/master", "version": "1.0" },
             "settings": {
                 "usbid_vendor": "[optional] Usb vendor ID in the following format (\"16c0\" : default)",

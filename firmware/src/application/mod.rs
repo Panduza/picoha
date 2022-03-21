@@ -24,8 +24,7 @@ use base64;
 
 // I2C HAL traits & Types.
 // use embedded_hal::blocking::i2c::{Operation, Read, Transactional, Write, WriteRead};
-use embedded_hal::blocking::i2c::Write;
-use embedded_hal::blocking::i2c::WriteRead;
+use embedded_hal::blocking::i2c;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct Command<'a> {
@@ -73,7 +72,7 @@ where
 impl<OP, IIC> HostAdapter<OP, IIC>
 where
     OP: OutputPin,
-    IIC: WriteRead //, Write
+    IIC: i2c::WriteRead + i2c::Write
 {
     /// Application intialization
     pub fn new(
@@ -126,24 +125,22 @@ where
                             match data.cmd {
                                 
                                 "twi_m_w" => {
-                                    // let mut write_data = [0u8; 512];
-                                    // match base64::decode_config_slice(
-                                    //     &data.data,
-                                    //     base64::STANDARD,
-                                    //     &mut write_data,
-                                    // ) {
-                                    //     Err(_e) => {}
-                                    //     Ok(count) => {
-                                    //         let mut readbuf = [0u8; 512];
-                                    //         self.i2c
-                                    //             .write(
-                                    //                 0x53,
-                                    //                 &write_data[..count],
-                                    //                 // &mut readbuf[..data.size],
-                                    //             )
-                                    //             .ok();
-                                    //     }
-                                    // }
+                                    let mut write_data = [0u8; 512];
+                                    match base64::decode_config_slice(
+                                        &data.data,
+                                        base64::STANDARD,
+                                        &mut write_data,
+                                    ) {
+                                        Err(_e) => {}
+                                        Ok(count) => {
+                                            self.i2c
+                                                .write(
+                                                    0x53,
+                                                    &write_data[..count]
+                                                )
+                                                .ok();
+                                        }
+                                    }
                             
                                 }
                                 "twi_m_wr" => {
