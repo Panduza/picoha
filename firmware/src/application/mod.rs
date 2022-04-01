@@ -20,11 +20,19 @@ use serde_json_core;
 
 // use heapless::Vec;
 
+#[macro_export]
+macro_rules! panic_json {
+    ( $( $x:expr ),* ) => {
+        "{\"error\": $x}"
+    };
+}
+
 use base64;
 
 // I2C HAL traits & Types.
 // use embedded_hal::blocking::i2c::{Operation, Read, Transactional, Write, WriteRead};
 use embedded_hal::blocking::i2c;
+use embedded_hal::blocking::spi;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct Command<'a> {
@@ -188,6 +196,120 @@ where
                             //     base64::encode_config_slice(s, base64::STANDARD, &mut buf);
                             // let _ = self.usb_serial.write(&buf[0..bytes_written]);
                             // let _ = self.usb_serial.write(b"\n");
+                        }
+                    }
+                }
+            }
+
+            self.led_pin.set_high().ok();
+            self.delay.delay_ms(500);
+            self.led_pin.set_low().ok();
+            self.delay.delay_ms(500);
+        }
+    }
+}
+
+pub struct SPIHostAdapter<OP, SPI>
+where
+    OP: OutputPin,
+{
+    /// To manage delay
+    delay: cortex_m::delay::Delay,
+
+    /// Led pin control
+    led_pin: OP,
+
+    ///
+    spi: SPI,
+
+    /// The USB Device Driver (shared with the interrupt).
+    usb_device: &'static mut UsbDevice<'static, hal::usb::UsbBus>,
+
+    /// The USB Serial Device Driver (shared with the interrupt).
+    usb_serial: &'static mut SerialPort<'static, hal::usb::UsbBus>,
+
+    ///
+    usb_buffer: UsbBuffer<1024>,
+}
+
+impl<OP, SPI> SPIHostAdapter<OP, SPI>
+where
+    OP: OutputPin,
+    SPI: spi::Transfer<u8>
+{
+    /// Application intialization
+    pub fn new(
+        delay: cortex_m::delay::Delay,
+        led_pin: OP,
+        spi: SPI,
+        usb_dev: &'static mut UsbDevice<'static, hal::usb::UsbBus>,
+        usb_ser: &'static mut SerialPort<'static, hal::usb::UsbBus>,
+    ) -> Self {
+        Self {
+            delay: delay,
+            led_pin: led_pin,
+            spi: spi,
+            usb_device: usb_dev,
+            usb_serial: usb_ser,
+            usb_buffer: UsbBuffer::new(),
+        }
+    }
+
+    /// Main loop of the main task of the application
+    pub fn run_forever(&mut self) -> ! {
+        // self.usb_serial.write(b"{ \"log\": \"+++ firmware start +++\" }\r\n").ok();
+
+        let mut cmd_buffer = [0u8; 1024];
+        loop {
+            let mut tmp_buf = [0u8; 20];
+
+            match self.usb_buffer.get_command(&mut cmd_buffer) {
+                None => {}
+                Some(cmd_end_index) => {
+                    let cmd_slice_ref = &cmd_buffer[0..cmd_end_index];
+
+                    match serde_json_core::de::from_slice::<Command>(cmd_slice_ref) {
+                        Err(_e) => {
+                            // Do nothing
+                            let _ = self.usb_serial.write(b"error parsing json command\n");
+                            let _ = self.usb_serial.write(cmd_slice_ref);
+                            let _ = self.usb_serial.write(b" == ");
+                            let _ = self
+                                .usb_serial
+                                .write(cmd_end_index.numtoa(10, &mut tmp_buf));
+                            let _ = self.usb_serial.write(b" == \r\n");
+                        }
+                        Ok(cmd) => {
+                            // let _ = self.usb_serial.write(cmd.0.cmd.len().numtoa(10, &mut tmp_buf));
+                            let _ = self.usb_serial.write(cmd.0.cmd.as_bytes());
+                            let _ = self.usb_serial.write(b"\n");
+
+                            let data = &cmd.0;
+                            match data.cmd {
+                                "spi_m_transfer" => {
+                                    let mut write_data = [0u8; 512];
+                                    match base64::decode_config_slice(
+                                        &data.data,
+                                        base64::STANDARD,
+                                        &mut write_data,
+                                    ) {
+                                        Err(_e) => {}
+                                        Ok(_count) => {
+                                            let mut buf = [0u8; 512];
+                                            self.spi
+                                                .transfer(
+                                                    &mut buf[..data.size]
+                                                )
+                                                .ok();
+                                            }
+                                        }
+                                }
+                                default => {
+                                    self.usb_serial.write(b"{\"log\": \"").ok();
+                                    self.usb_serial.write(default.as_bytes()).ok();
+                                    self.usb_serial.write(b" command not found\"}\r\n").ok();
+                                }
+                            }
                         }
                     }
                 }

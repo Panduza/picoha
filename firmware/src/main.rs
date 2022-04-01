@@ -41,18 +41,25 @@ mod platform;
 
 type TypePinLed = gpio::Pin<gpio::bank0::Gpio25, gpio::Output<gpio::PushPull>>;
 
-type TypeI2CInterface = hal::I2C<
-    pac::I2C0,
-    (
-        hal::gpio::Pin<hal::gpio::bank0::Gpio20, hal::gpio::Function<hal::gpio::I2C>>,
-        hal::gpio::Pin<hal::gpio::bank0::Gpio21, hal::gpio::Function<hal::gpio::I2C>>,
-    ),
+// type TypeI2CInterface = hal::I2C<
+//     pac::I2C0,
+//     (
+//         hal::gpio::Pin<hal::gpio::bank0::Gpio20, hal::gpio::Function<hal::gpio::I2C>>,
+//         hal::gpio::Pin<hal::gpio::bank0::Gpio21, hal::gpio::Function<hal::gpio::I2C>>,
+//     ),
+// >;
+
+type TypeSPIInterface = hal::Spi<
+    hal::spi::Enabled,
+    pac::SPI0,
+    8,
 >;
 
 // ============================================================================
 
 /// Application object
-static mut APP_INSTANCE: Option<application::HostAdapter<TypePinLed, TypeI2CInterface>> = None;
+// static mut APP_INSTANCE: Option<application::HostAdapter<TypePinLed, TypeI2CInterface>> = None;
+static mut APP_INSTANCE: Option<application::SPIHostAdapter<TypePinLed, TypeSPIInterface>> = None;
 
 /// USB bus allocator
 static mut USB_BUS: Option<UsbBusAllocator<hal::usb::UsbBus>> = None;
@@ -134,26 +141,46 @@ unsafe fn main() -> ! {
 
     // Declare I2C
     // Configure two pins as being I²C, not GPIO
-    let sda_pin = pins.gpio20.into_mode::<hal::gpio::FunctionI2C>();
-    let scl_pin = pins.gpio21.into_mode::<hal::gpio::FunctionI2C>();
+    // let sda_pin = pins.gpio20.into_mode::<hal::gpio::FunctionI2C>();
+    // let scl_pin = pins.gpio21.into_mode::<hal::gpio::FunctionI2C>();
 
+    // These are implicitly used by the spi driver if they are in the correct mode
+    let _spi_sclk = pins.gpio6.into_mode::<hal::gpio::FunctionSpi>();
+    let _spi_mosi = pins.gpio7.into_mode::<hal::gpio::FunctionSpi>();
+    let _spi_miso = pins.gpio4.into_mode::<hal::gpio::FunctionSpi>();
+    
+    let spi = hal::Spi::<_, _, 8>::new(pac.SPI0);
+    let spi = spi.init(
+        &mut pac.RESETS,
+        clocks.peripheral_clock.freq(),
+        16_000_000u32.Hz(),
+        &embedded_hal::spi::MODE_0,
+    );
     // Create the I²C driver, using the two pre-configured pins. This will fail
     // at compile time if the pins are in the wrong mode, or if this I²C
     // peripheral isn't available on these pins!
-    let i2c = hal::I2C::i2c0(
-        pac.I2C0,
-        sda_pin,
-        scl_pin,
-        100.kHz(),
-        &mut pac.RESETS,
-        clocks.peripheral_clock,
-    );
+    // let i2c = hal::I2C::i2c0(
+    //     pac.I2C0,
+    //     sda_pin,
+    //     scl_pin,
+    //     100.kHz(),
+    //     &mut pac.RESETS,
+    //     clocks.peripheral_clock,
+    // );
 
     // Init the application and start it
-    APP_INSTANCE = Some(application::HostAdapter::new(
+    // APP_INSTANCE = Some(application::HostAdapter::new(
+    //     cortex_m::delay::Delay::new(core.SYST, clocks.system_clock.freq().integer()), // Append delay feature to the app
+    //     pins.led.into_push_pull_output(), // Set the led gpio as output
+    //     i2c,
+    //     USB_DEVICE.as_mut().unwrap(),
+    //     USB_SERIAL.as_mut().unwrap(),
+    // ));
+
+    APP_INSTANCE = Some(application::SPIHostAdapter::new(
         cortex_m::delay::Delay::new(core.SYST, clocks.system_clock.freq().integer()), // Append delay feature to the app
         pins.led.into_push_pull_output(), // Set the led gpio as output
-        i2c,
+        spi,
         USB_DEVICE.as_mut().unwrap(),
         USB_SERIAL.as_mut().unwrap(),
     ));
