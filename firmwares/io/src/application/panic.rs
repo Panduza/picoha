@@ -7,9 +7,7 @@ use numtoa::NumToA;
 use embedded_hal::digital::v2::OutputPin;
 
 ///
-impl<OP, IIC> HostAdapter<OP, IIC>
-where
-    OP: OutputPin,
+impl HostAdapter
 {
 
     // pub struct PanicInfo<'a> {
@@ -38,10 +36,10 @@ where
             .ok();
         self.usb_serial.write(b"\"}\r\n").ok();
         loop {
-            self.led_pin.set_high().ok();
-            self.delay.delay_ms(100);
-            self.led_pin.set_low().ok();
-            self.delay.delay_ms(100);
+            // self.led_pin.set_high().ok();
+            // self.delay.delay_ms(100);
+            // self.led_pin.set_low().ok();
+            // self.delay.delay_ms(100);
         }
     }
 }
