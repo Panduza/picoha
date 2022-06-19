@@ -44,6 +44,10 @@ struct Command {
 struct Answer<'a>  {
     /// Status code
     sts: u8,
+    // id of the pin (X => gpioX)
+    pin: u8,
+    // if cmd = 0 { 0 mode input, 1 mode output }
+    arg: u8,
     /// Text message
     msg: &'a str
 }
@@ -104,12 +108,30 @@ impl PicohaIo
     /// 
     pub fn send_log(&mut self) {
 
-        let ans = Answer { sts:0, msg: "truc" };
+        let ans = Answer { sts:0, pin: 0, arg: 0, msg: "truc" };
         let mut tmp_buf = [0u8; 40];
         let j = serde_json_core::to_slice(&ans, &mut tmp_buf);
         
         self.usb_serial.write(&tmp_buf).unwrap();
         self.usb_serial.write(b" == \r\n").unwrap();
+    }
+
+    ///
+    /// 
+    fn process_set_io_mode(&mut self, cmd : &Command ) {
+
+    }
+
+    ///
+    /// 
+    fn process_write_io(&mut self, cmd : &Command ) {
+
+    }
+
+    ///
+    /// 
+    fn process_read_io(&mut self, cmd : &Command ) {
+
     }
 
     /// Main loop of the main task of the application
@@ -154,7 +176,7 @@ impl PicohaIo
                             match data.cod {
 
                                 0 => {
-
+                                    self.process_set_io_mode(data);
                                 }
 
                                 default => {
