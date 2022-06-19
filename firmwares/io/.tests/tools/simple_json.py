@@ -9,8 +9,9 @@ import serial
 
 ser = serial.Serial("/dev/ttyACM0", 115200)
 
-# req = { "cmd": "get_version" }
-req = { "cmd": "twi_m_wr", "data": base64.b64encode(bytearray([0])).decode("utf-8"), "size": 1 }
+
+# req = { "cod": 0, "pin": 0, "arg": 0 }
+req = { "cod": 0 }
 
 # b64encode
 ser.write( (json.dumps(req) + "\n") .encode() )

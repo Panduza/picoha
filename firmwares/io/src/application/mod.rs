@@ -30,14 +30,22 @@ use numtoa::NumToA;
 use serde::{Deserialize, Serialize};
 use serde_json_core;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 struct Command {
     // 0 set mode / 1 write val / 2 read val
-    cmd: u8,
+    cod: u8,
     // id of the pin (X => gpioX)
     pin: u8,
     // if cmd = 0 { 0 mode input, 1 mode output }
     arg: u8
+}
+
+#[derive(Serialize, Debug)]
+struct Answer<'a>  {
+    /// Status code
+    sts: u8,
+    /// Text message
+    msg: &'a str
 }
 
 // ============================================================================
@@ -92,7 +100,20 @@ impl PicohaIo
         }
     }
 
+    /// To sned log to the user
+    /// 
+    pub fn send_log(&mut self) {
+
+        let ans = Answer { sts:0, msg: "truc" };
+        let mut tmp_buf = [0u8; 40];
+        let j = serde_json_core::to_slice(&ans, &mut tmp_buf);
+        
+        self.usb_serial.write(&tmp_buf).unwrap();
+        self.usb_serial.write(b" == \r\n").unwrap();
+    }
+
     /// Main loop of the main task of the application
+    /// 
     pub fn run_forever(&mut self) -> ! {
 
         // self.usb_serial.write(b"{ \"log\": \"+++ firmware start +++\" }\r\n").ok();
@@ -107,23 +128,41 @@ impl PicohaIo
                     let cmd_slice_ref = &cmd_buffer[0..cmd_end_index];
 
                     match serde_json_core::de::from_slice::<Command>(cmd_slice_ref) {
+                        
                         Err(_e) => {
-                            // Do nothing
-                            let _ = self.usb_serial.write(b"error parsing json command\n");
-                            let _ = self.usb_serial.write(cmd_slice_ref);
-                            let _ = self.usb_serial.write(b" == ");
-                            let _ = self
-                                .usb_serial
-                                .write(cmd_end_index.numtoa(10, &mut tmp_buf));
-                            let _ = self.usb_serial.write(b" == \r\n");
-                        }
-                        Ok(cmd) => {
-                            // // let _ = self.usb_serial.write(cmd.0.cmd.len().numtoa(10, &mut tmp_buf));
-                            // let _ = self.usb_serial.write(cmd.0.cmd.as_bytes());
-                            // let _ = self.usb_serial.write(b"\n");
+                            
 
-                            // let data = &cmd.0;
-                            // match data.cmd {
+                            self.send_log();
+
+
+                            // // Do nothing
+                            // let _ = self.usb_serial.write(b"error parsing json command\n");
+                            // let _ = self.usb_serial.write(cmd_slice_ref);
+                            // let _ = self.usb_serial.write(b" == ");
+                            // let _ = self
+                            //     .usb_serial
+                            //     .write(cmd_end_index.numtoa(10, &mut tmp_buf));
+                            // let _ = self.usb_serial.write(b" == \r\n");
+                        }
+
+                        Ok(cmd) => {
+                            // let _ = self.usb_serial.write(cmd.0.cmd.len().numtoa(10, &mut tmp_buf));
+                        //     let _ = self.usb_serial.write(cmd.0.cmd.numtoa(10, &mut tmp_buf));
+                        //     let _ = self.usb_serial.write(b"\n");
+
+                            let data = &cmd.0;
+                            match data.cod {
+
+                                0 => {
+
+                                }
+
+                                default => {
+                                    self.usb_serial.write(b"{\"log\": \"").ok();
+                                    // self.usb_serial.write(default.as_bytes()).ok();
+                                    self.usb_serial.write(b" command not found\"}\r\n").ok();
+                                }
+                            }
                                 
                                 // "twi_m_w" => {
                                 //     let mut write_data = [0u8; 512];
