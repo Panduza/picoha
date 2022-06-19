@@ -69,7 +69,7 @@ pub struct PicohaIo
     dyn_ios: [DynPin; NB_IO_RP2040],
     /// Map to convert gpio index into *dyn_ios* index
     /// This is because some gpioX does not exist (or not driveable) and create hole in the array
-    map_ios: [u8; MAX_IO_INDEX_RP2040],
+    map_ios: [usize; MAX_IO_INDEX_RP2040],
 
     /// The USB Device Driver (shared with the interrupt).
     usb_device: &'static mut UsbDevice<'static, hal::usb::UsbBus>,
@@ -90,7 +90,7 @@ impl PicohaIo
     pub fn new(
         delay: cortex_m::delay::Delay,
         dyn_ios: [DynPin; NB_IO_RP2040],
-        map_ios: [u8; MAX_IO_INDEX_RP2040],
+        map_ios: [usize; MAX_IO_INDEX_RP2040],
         usb_dev: &'static mut UsbDevice<'static, hal::usb::UsbBus>,
         usb_ser: &'static mut SerialPort<'static, hal::usb::UsbBus>,
     ) -> Self {
@@ -120,25 +120,44 @@ impl PicohaIo
     /// 
     fn process_set_io_mode(&mut self, cmd : &Command ) {
 
+        // Get io from cmd
+        let idx = self.map_ios[cmd.pin as usize];
+        let io = &mut self.dyn_ios[idx];
+
+
+        // Configure the pin to operate as a readable push pull output
+        io.into_readable_output();
+
+        // Configure the pin to operate as a pulled down input
+        // io.into_pull_down_input();
+        // io.into_pull_up_input();
+
     }
 
     ///
     /// 
     fn process_write_io(&mut self, cmd : &Command ) {
 
+        // Get io from cmd
+        let idx = self.map_ios[cmd.pin as usize];
+        let io = &mut self.dyn_ios[idx];
+        
     }
 
     ///
     /// 
     fn process_read_io(&mut self, cmd : &Command ) {
 
+        // Get io from cmd
+        let idx = self.map_ios[cmd.pin as usize];
+        let io = &mut self.dyn_ios[idx];
+        
     }
 
     /// Main loop of the main task of the application
     /// 
     pub fn run_forever(&mut self) -> ! {
 
-        // self.usb_serial.write(b"{ \"log\": \"+++ firmware start +++\" }\r\n").ok();
 
         let mut cmd_buffer = [0u8; 1024];
         loop {
@@ -194,79 +213,12 @@ impl PicohaIo
                                 }
                             }
                                 
-                                // "twi_m_w" => {
-                                //     let mut write_data = [0u8; 512];
-                                //     match base64::decode_config_slice(
-                                //         &data.data,
-                                //         base64::STANDARD,
-                                //         &mut write_data,
-                                //     ) {
-                                //         Err(_e) => {}
-                                //         Ok(count) => {
-                                //             self.i2c
-                                //                 .write(
-                                //                     0x53,
-                                //                     &write_data[..count]
-                                //                 )
-                                //                 .ok();
-                                //         }
-                                //     }
-                            
-                                // }
-                                // "twi_m_wr" => {
-                                
-                                //     let mut write_data = [0u8; 512];
-                                //     match base64::decode_config_slice(
-                                //         &data.data,
-                                //         base64::STANDARD,
-                                //         &mut write_data,
-                                //     ) {
-                                //         Err(_e) => {}
-                                //         Ok(count) => {
-                                //             let mut readbuf = [0u8; 512];
-                                //             self.i2c
-                                //                 .write_read(
-                                //                     0x53,
-                                //                     &write_data[..count],
-                                //                     &mut readbuf[..data.size],
-                                //                 )
-                                //                 .ok();
 
-                                //             // self.usb_serial
-                                //             //     .write(write_data[0].numtoa(10, &mut tmp_buf))
-                                //             //     .ok();
-                                //             // self.usb_serial.write(b" c\n").ok();
-                                //             // self.usb_serial
-                                //             //     .write(readbuf[0].numtoa(10, &mut tmp_buf))
-                                //             //     .ok();
-                                //             // self.usb_serial.write(b" c\n").ok();
-                                //         }
-                                //     }
-                                // }
-                                // default => {
-                                //     self.usb_serial.write(b"{\"log\": \"").ok();
-                                //     self.usb_serial.write(default.as_bytes()).ok();
-                                //     self.usb_serial.write(b" command not found\"}\r\n").ok();
-                                // }
-                            // }
-
-                            // let s = b"hello internet!";
-                            // let mut buf = [0u8; 150];
-                            // // make sure we'll have a slice big enough for base64 + padding
-                            // // buf.resize(s.len() * 4 / 3 + 4, 0);
-                            // let bytes_written =
-                            //     base64::encode_config_slice(s, base64::STANDARD, &mut buf);
-                            // let _ = self.usb_serial.write(&buf[0..bytes_written]);
-                            // let _ = self.usb_serial.write(b"\n");
                         }
                     }
                 }
             }
 
-            // self.led_pin.set_high().ok();
-            // self.delay.delay_ms(500);
-            // self.led_pin.set_low().ok();
-            // self.delay.delay_ms(500);
         }
     }
 }
