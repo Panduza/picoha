@@ -1,9 +1,13 @@
 // ============================================================================
 
+/// Number of io on the rp2040
+pub const NB_IO_RP2040: usize = 27;
+pub const MAX_IO_INDEX_RP2040: usize = 28;
+
 // HAL
 use embedded_hal::digital::v2::OutputPin;
 use rp_pico::hal;
-// use rp_pico::hal::gpio;
+use rp_pico::hal::gpio::dynpin::DynPin;
 
 // USB crates
 // use rp_pico::hal::usb::UsbBus;
@@ -15,25 +19,26 @@ use usb_device::prelude::UsbDevice;
 // USB Communications Class Device support
 use usbd_serial::SerialPort;
 
+
+
+
+use numtoa::NumToA;
+
+
+// ============================================================================
+
 use serde::{Deserialize, Serialize};
 use serde_json_core;
 
-// use heapless::Vec;
-
-use base64;
-
-// I2C HAL traits & Types.
-// use embedded_hal::blocking::i2c::{Operation, Read, Transactional, Write, WriteRead};
-use embedded_hal::blocking::i2c;
-
 #[derive(Serialize, Deserialize, Debug)]
-struct Command<'a> {
-    cmd: &'a str,
-    data: &'a str,
-    size: usize,
+struct Command {
+    // 0 set mode / 1 write val / 2 read val
+    cmd: u8,
+    // id of the pin (X => gpioX)
+    pin: u8,
+    // if cmd = 0 { 0 mode input, 1 mode output }
+    arg: u8
 }
-
-use numtoa::NumToA;
 
 // ============================================================================
 
@@ -43,15 +48,16 @@ use buffer::UsbBuffer;
 // ============================================================================
 
 /// Store all the usefull objects for the application
-pub struct PicohaIo<OP>
-where
-    OP: OutputPin,
+pub struct PicohaIo
 {
     /// To manage delay
     delay: cortex_m::delay::Delay,
 
-    /// Led pin control
-    led_pin: OP,
+    /// Objects to control io of the board
+    dyn_ios: [DynPin; NB_IO_RP2040],
+    /// Map to convert gpio index into *dyn_ios* index
+    /// This is because some gpioX does not exist (or not driveable) and create hole in the array
+    map_ios: [u8; MAX_IO_INDEX_RP2040],
 
     /// The USB Device Driver (shared with the interrupt).
     usb_device: &'static mut UsbDevice<'static, hal::usb::UsbBus>,
@@ -66,20 +72,20 @@ where
 // ============================================================================
 
 /// Implementation of the App
-impl<OP> PicohaIo<OP>
-where
-    OP: OutputPin
+impl PicohaIo
 {
     /// Application intialization
     pub fn new(
         delay: cortex_m::delay::Delay,
-        led_pin: OP,
+        dyn_ios: [DynPin; NB_IO_RP2040],
+        map_ios: [u8; MAX_IO_INDEX_RP2040],
         usb_dev: &'static mut UsbDevice<'static, hal::usb::UsbBus>,
         usb_ser: &'static mut SerialPort<'static, hal::usb::UsbBus>,
     ) -> Self {
         Self {
             delay: delay,
-            led_pin: led_pin,
+            dyn_ios: dyn_ios,
+            map_ios: map_ios,
             usb_device: usb_dev,
             usb_serial: usb_ser,
             usb_buffer: UsbBuffer::new(),
@@ -88,6 +94,7 @@ where
 
     /// Main loop of the main task of the application
     pub fn run_forever(&mut self) -> ! {
+
         // self.usb_serial.write(b"{ \"log\": \"+++ firmware start +++\" }\r\n").ok();
 
         let mut cmd_buffer = [0u8; 1024];
@@ -111,12 +118,12 @@ where
                             let _ = self.usb_serial.write(b" == \r\n");
                         }
                         Ok(cmd) => {
-                            // let _ = self.usb_serial.write(cmd.0.cmd.len().numtoa(10, &mut tmp_buf));
-                            let _ = self.usb_serial.write(cmd.0.cmd.as_bytes());
-                            let _ = self.usb_serial.write(b"\n");
+                            // // let _ = self.usb_serial.write(cmd.0.cmd.len().numtoa(10, &mut tmp_buf));
+                            // let _ = self.usb_serial.write(cmd.0.cmd.as_bytes());
+                            // let _ = self.usb_serial.write(b"\n");
 
-                            let data = &cmd.0;
-                            match data.cmd {
+                            // let data = &cmd.0;
+                            // match data.cmd {
                                 
                                 // "twi_m_w" => {
                                 //     let mut write_data = [0u8; 512];
@@ -167,12 +174,12 @@ where
                                 //         }
                                 //     }
                                 // }
-                                default => {
-                                    self.usb_serial.write(b"{\"log\": \"").ok();
-                                    self.usb_serial.write(default.as_bytes()).ok();
-                                    self.usb_serial.write(b" command not found\"}\r\n").ok();
-                                }
-                            }
+                                // default => {
+                                //     self.usb_serial.write(b"{\"log\": \"").ok();
+                                //     self.usb_serial.write(default.as_bytes()).ok();
+                                //     self.usb_serial.write(b" command not found\"}\r\n").ok();
+                                // }
+                            // }
 
                             // let s = b"hello internet!";
                             // let mut buf = [0u8; 150];
@@ -187,10 +194,10 @@ where
                 }
             }
 
-            self.led_pin.set_high().ok();
-            self.delay.delay_ms(500);
-            self.led_pin.set_low().ok();
-            self.delay.delay_ms(500);
+            // self.led_pin.set_high().ok();
+            // self.delay.delay_ms(500);
+            // self.led_pin.set_low().ok();
+            // self.delay.delay_ms(500);
         }
     }
 }
