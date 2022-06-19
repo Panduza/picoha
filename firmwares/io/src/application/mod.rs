@@ -43,16 +43,15 @@ use buffer::UsbBuffer;
 // ============================================================================
 
 /// Store all the usefull objects for the application
-pub struct HostAdapter
+pub struct PicohaIo<OP>
+where
+    OP: OutputPin,
 {
     /// To manage delay
     delay: cortex_m::delay::Delay,
 
     /// Led pin control
-    // led_pin: OP,
-
-    ///
-    pins: &'static mut rp_pico::Pins,
+    led_pin: OP,
 
     /// The USB Device Driver (shared with the interrupt).
     usb_device: &'static mut UsbDevice<'static, hal::usb::UsbBus>,
@@ -67,31 +66,24 @@ pub struct HostAdapter
 // ============================================================================
 
 /// Implementation of the App
-impl HostAdapter
+impl<OP> PicohaIo<OP>
+where
+    OP: OutputPin
 {
     /// Application intialization
     pub fn new(
         delay: cortex_m::delay::Delay,
-        pins: &'static mut rp_pico::Pins,
+        led_pin: OP,
         usb_dev: &'static mut UsbDevice<'static, hal::usb::UsbBus>,
         usb_ser: &'static mut SerialPort<'static, hal::usb::UsbBus>,
     ) -> Self {
-
-
-        // pins.led.into_push_pull_output();
-
-        // Our button input
-        let button_pin = pins.gpio15.into_pull_up_input();
-
         Self {
             delay: delay,
-            pins: pins,
+            led_pin: led_pin,
             usb_device: usb_dev,
             usb_serial: usb_ser,
             usb_buffer: UsbBuffer::new(),
         }
-
-
     }
 
     /// Main loop of the main task of the application
@@ -107,80 +99,80 @@ impl HostAdapter
                 Some(cmd_end_index) => {
                     let cmd_slice_ref = &cmd_buffer[0..cmd_end_index];
 
-                    // match serde_json_core::de::from_slice::<Command>(cmd_slice_ref) {
-                    //     Err(_e) => {
-                    //         // Do nothing
-                    //         let _ = self.usb_serial.write(b"error parsing json command\n");
-                    //         let _ = self.usb_serial.write(cmd_slice_ref);
-                    //         let _ = self.usb_serial.write(b" == ");
-                    //         let _ = self
-                    //             .usb_serial
-                    //             .write(cmd_end_index.numtoa(10, &mut tmp_buf));
-                    //         let _ = self.usb_serial.write(b" == \r\n");
-                    //     }
-                    //     Ok(cmd) => {
-                    //         // let _ = self.usb_serial.write(cmd.0.cmd.len().numtoa(10, &mut tmp_buf));
-                    //         let _ = self.usb_serial.write(cmd.0.cmd.as_bytes());
-                    //         let _ = self.usb_serial.write(b"\n");
+                    match serde_json_core::de::from_slice::<Command>(cmd_slice_ref) {
+                        Err(_e) => {
+                            // Do nothing
+                            let _ = self.usb_serial.write(b"error parsing json command\n");
+                            let _ = self.usb_serial.write(cmd_slice_ref);
+                            let _ = self.usb_serial.write(b" == ");
+                            let _ = self
+                                .usb_serial
+                                .write(cmd_end_index.numtoa(10, &mut tmp_buf));
+                            let _ = self.usb_serial.write(b" == \r\n");
+                        }
+                        Ok(cmd) => {
+                            // let _ = self.usb_serial.write(cmd.0.cmd.len().numtoa(10, &mut tmp_buf));
+                            let _ = self.usb_serial.write(cmd.0.cmd.as_bytes());
+                            let _ = self.usb_serial.write(b"\n");
 
-                    //         let data = &cmd.0;
-                    //         match data.cmd {
+                            let data = &cmd.0;
+                            match data.cmd {
                                 
-                    //             "twi_m_w" => {
-                    //                 let mut write_data = [0u8; 512];
-                    //                 match base64::decode_config_slice(
-                    //                     &data.data,
-                    //                     base64::STANDARD,
-                    //                     &mut write_data,
-                    //                 ) {
-                    //                     Err(_e) => {}
-                    //                     Ok(count) => {
-                    //                         self.i2c
-                    //                             .write(
-                    //                                 0x53,
-                    //                                 &write_data[..count]
-                    //                             )
-                    //                             .ok();
-                    //                     }
-                    //                 }
+                                // "twi_m_w" => {
+                                //     let mut write_data = [0u8; 512];
+                                //     match base64::decode_config_slice(
+                                //         &data.data,
+                                //         base64::STANDARD,
+                                //         &mut write_data,
+                                //     ) {
+                                //         Err(_e) => {}
+                                //         Ok(count) => {
+                                //             self.i2c
+                                //                 .write(
+                                //                     0x53,
+                                //                     &write_data[..count]
+                                //                 )
+                                //                 .ok();
+                                //         }
+                                //     }
                             
-                    //             }
-                    //             "twi_m_wr" => {
+                                // }
+                                // "twi_m_wr" => {
                                 
-                    //                 let mut write_data = [0u8; 512];
-                    //                 match base64::decode_config_slice(
-                    //                     &data.data,
-                    //                     base64::STANDARD,
-                    //                     &mut write_data,
-                    //                 ) {
-                    //                     Err(_e) => {}
-                    //                     Ok(count) => {
-                    //                         let mut readbuf = [0u8; 512];
-                    //                         self.i2c
-                    //                             .write_read(
-                    //                                 0x53,
-                    //                                 &write_data[..count],
-                    //                                 &mut readbuf[..data.size],
-                    //                             )
-                    //                             .ok();
+                                //     let mut write_data = [0u8; 512];
+                                //     match base64::decode_config_slice(
+                                //         &data.data,
+                                //         base64::STANDARD,
+                                //         &mut write_data,
+                                //     ) {
+                                //         Err(_e) => {}
+                                //         Ok(count) => {
+                                //             let mut readbuf = [0u8; 512];
+                                //             self.i2c
+                                //                 .write_read(
+                                //                     0x53,
+                                //                     &write_data[..count],
+                                //                     &mut readbuf[..data.size],
+                                //                 )
+                                //                 .ok();
 
-                    //                         // self.usb_serial
-                    //                         //     .write(write_data[0].numtoa(10, &mut tmp_buf))
-                    //                         //     .ok();
-                    //                         // self.usb_serial.write(b" c\n").ok();
-                    //                         // self.usb_serial
-                    //                         //     .write(readbuf[0].numtoa(10, &mut tmp_buf))
-                    //                         //     .ok();
-                    //                         // self.usb_serial.write(b" c\n").ok();
-                    //                     }
-                    //                 }
-                    //             }
-                    //             default => {
-                    //                 self.usb_serial.write(b"{\"log\": \"").ok();
-                    //                 self.usb_serial.write(default.as_bytes()).ok();
-                    //                 self.usb_serial.write(b" command not found\"}\r\n").ok();
-                    //             }
-                    //         }
+                                //             // self.usb_serial
+                                //             //     .write(write_data[0].numtoa(10, &mut tmp_buf))
+                                //             //     .ok();
+                                //             // self.usb_serial.write(b" c\n").ok();
+                                //             // self.usb_serial
+                                //             //     .write(readbuf[0].numtoa(10, &mut tmp_buf))
+                                //             //     .ok();
+                                //             // self.usb_serial.write(b" c\n").ok();
+                                //         }
+                                //     }
+                                // }
+                                default => {
+                                    self.usb_serial.write(b"{\"log\": \"").ok();
+                                    self.usb_serial.write(default.as_bytes()).ok();
+                                    self.usb_serial.write(b" command not found\"}\r\n").ok();
+                                }
+                            }
 
                             // let s = b"hello internet!";
                             // let mut buf = [0u8; 150];
@@ -190,15 +182,15 @@ impl HostAdapter
                             //     base64::encode_config_slice(s, base64::STANDARD, &mut buf);
                             // let _ = self.usb_serial.write(&buf[0..bytes_written]);
                             // let _ = self.usb_serial.write(b"\n");
-                        // }
-                    // }
+                        }
+                    }
                 }
             }
 
-            // self.led_pin.set_high().ok();
-            // self.delay.delay_ms(500);
-            // self.led_pin.set_low().ok();
-            // self.delay.delay_ms(500);
+            self.led_pin.set_high().ok();
+            self.delay.delay_ms(500);
+            self.led_pin.set_low().ok();
+            self.delay.delay_ms(500);
         }
     }
 }

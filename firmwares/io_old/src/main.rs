@@ -1,6 +1,10 @@
 #![no_std]
 #![no_main]
 
+// Hal rsut for rp2040 has redefined the namespace
+// rp2040_hal => rp_pico::hal
+//
+
 // The macro for our start-up function
 use cortex_m_rt::entry;
 
@@ -24,7 +28,7 @@ use rp_pico::hal::pac;
 // A shorter alias for the Hardware Abstraction Layer, which provides
 // higher-level drivers.
 use rp_pico::hal;
-use rp_pico::hal::gpio;
+// use rp_pico::hal::gpio;
 use rp_pico::hal::gpio::dynpin::DynPin;
 
 // USB Device support
@@ -33,6 +37,8 @@ use usb_device::{class_prelude::*, prelude::*};
 // USB Communications Class Device support
 use usbd_serial::SerialPort;
 
+
+
 // ============================================================================
 
 mod application;
@@ -40,12 +46,8 @@ mod platform;
 
 // ============================================================================
 
-type TypePinLed = gpio::Pin<gpio::bank0::Gpio25, gpio::Output<gpio::PushPull>>;
-
-// ============================================================================
-
 /// Application object
-static mut APP_INSTANCE: Option<application::PicohaIo<TypePinLed>> = None;
+static mut APP_INSTANCE: Option<application::PicohaIo> = None;
 
 /// USB bus allocator
 static mut USB_BUS: Option<UsbBusAllocator<hal::usb::UsbBus>> = None;
@@ -125,10 +127,13 @@ unsafe fn main() -> ! {
         &mut pac.RESETS,
     );
 
+    let gpio25: DynPin = pins.led.into();
+    
+
     // Init the application and start it
     APP_INSTANCE = Some(application::PicohaIo::new(
         cortex_m::delay::Delay::new(core.SYST, clocks.system_clock.freq().integer()), // Append delay feature to the app
-        pins.led.into_push_pull_output(), // Set the led gpio as output
+        gpio25,
         USB_DEVICE.as_mut().unwrap(),
         USB_SERIAL.as_mut().unwrap(),
     ));

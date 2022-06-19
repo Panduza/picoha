@@ -7,9 +7,7 @@ use numtoa::NumToA;
 use embedded_hal::digital::v2::OutputPin;
 
 ///
-impl<OP> PicohaIo<OP>
-where
-    OP: OutputPin,
+impl PicohaIo
 {
 
     // pub struct PanicInfo<'a> {

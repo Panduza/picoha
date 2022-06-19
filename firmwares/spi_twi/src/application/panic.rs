@@ -7,7 +7,9 @@ use numtoa::NumToA;
 use embedded_hal::digital::v2::OutputPin;
 
 ///
-impl HostAdapter
+impl<OP, IIC> HostAdapter<OP, IIC>
+where
+    OP: OutputPin,
 {
 
     // pub struct PanicInfo<'a> {

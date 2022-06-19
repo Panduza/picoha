@@ -1,13 +1,7 @@
 use super::PicohaIo;
 
-use embedded_hal::digital::v2::OutputPin;
-
-// ============================================================================
-
 ///
-impl<OP> PicohaIo<OP>
-where
-    OP: OutputPin,
+impl PicohaIo
 {
     pub fn usbctrl_irq(&mut self) {
         // Poll the USB driver with all of our supported USB Classes
