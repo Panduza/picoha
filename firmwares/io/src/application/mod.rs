@@ -179,6 +179,14 @@ impl PicohaIo
                                     self.process_set_io_mode(data);
                                 }
 
+                                1 => {
+                                    self.process_write_io(data);
+                                }
+
+                                2 => {
+                                    self.process_read_io(data);
+                                }
+
                                 default => {
                                     self.usb_serial.write(b"{\"log\": \"").ok();
                                     // self.usb_serial.write(default.as_bytes()).ok();
