@@ -4,26 +4,22 @@
 pub const NB_IO_RP2040: usize = 27;
 pub const MAX_IO_INDEX_RP2040: usize = 28;
 
+/// Size of the answer buffer, used to convert answer message into a json string
+pub const SIZE_ANS_BUFFER: usize = 400;
+
 // HAL
 use embedded_hal::digital::v2::OutputPin;
 use rp_pico::hal;
 use rp_pico::hal::gpio::dynpin::DynPin;
 
 // USB crates
-// use rp_pico::hal::usb::UsbBus;
-// use usb_device::class_prelude::UsbBusAllocator;
 use usb_device::prelude::UsbDevice;
-// use usb_device::prelude::UsbDeviceBuilder;
-// use usb_device::prelude::UsbVidPid;
 
 // USB Communications Class Device support
 use usbd_serial::SerialPort;
 
-
-
-
+// Algos
 use numtoa::NumToA;
-
 
 // ============================================================================
 
@@ -32,24 +28,33 @@ use serde_json_core;
 
 #[derive(Deserialize, Debug)]
 struct Command {
-    // 0 set mode / 1 write val / 2 read val
+    /// 0 set mode / 1 write val / 2 read val
     cod: u8,
-    // id of the pin (X => gpioX)
+    /// id of the pin (X => gpioX)
     pin: u8,
-    // if cmd = 0 { 0 mode input, 1 mode output }
-    arg: u8
+    /// if cmd = 0 mode  { 0 mode input_pullup, 1 mode input_pulldown, 2 mode output }
+    /// if cmd = 1 write { the io value 0 or 1 }
+    /// if cmd = 2 read  { none }
+    arg: u8,
 }
 
 #[derive(Serialize, Debug)]
-struct Answer<'a>  {
+struct Answer<'a> {
     /// Status code
     sts: u8,
-    // id of the pin (X => gpioX)
+    /// id of the pin (X => gpioX)
     pin: u8,
-    // if cmd = 0 { 0 mode input, 1 mode output }
+    ///
     arg: u8,
     /// Text message
-    msg: &'a str
+    msg: &'a str,
+}
+
+// ============================================================================
+
+enum AnsStatus {
+    Ok = 0,
+    Error = 1
 }
 
 // ============================================================================
@@ -60,8 +65,7 @@ use buffer::UsbBuffer;
 // ============================================================================
 
 /// Store all the usefull objects for the application
-pub struct PicohaIo
-{
+pub struct PicohaIo {
     /// To manage delay
     delay: cortex_m::delay::Delay,
 
@@ -77,15 +81,17 @@ pub struct PicohaIo
     /// The USB Serial Device Driver (shared with the interrupt).
     usb_serial: &'static mut SerialPort<'static, hal::usb::UsbBus>,
 
-    ///
+    /// Buffer to store incomming serial command
     usb_buffer: UsbBuffer<1024>,
+
+    /// Buffer to prepare answer message
+    ans_buffer: [u8; SIZE_ANS_BUFFER]
 }
 
 // ============================================================================
 
 /// Implementation of the App
-impl PicohaIo
-{
+impl PicohaIo {
     /// Application intialization
     pub fn new(
         delay: cortex_m::delay::Delay,
@@ -101,67 +107,131 @@ impl PicohaIo
             usb_device: usb_dev,
             usb_serial: usb_ser,
             usb_buffer: UsbBuffer::new(),
+            ans_buffer: [0; SIZE_ANS_BUFFER]
         }
     }
 
-    /// To sned log to the user
-    /// 
-    pub fn send_log(&mut self) {
+    /// To send a message back to the user
+    ///
+    fn send_answer(&mut self, ans: &Answer) {
+        // Convert the message into a json string
+        let size = serde_json_core::to_slice(&ans, &mut self.ans_buffer).unwrap();
 
-        let ans = Answer { sts:0, pin: 0, arg: 0, msg: "truc" };
-        let mut tmp_buf = [0u8; 40];
-        let j = serde_json_core::to_slice(&ans, &mut tmp_buf);
-        
-        self.usb_serial.write(&tmp_buf).unwrap();
-        self.usb_serial.write(b" == \r\n").unwrap();
+        // Send message on the serial port
+        self.usb_serial.write(&self.ans_buffer[0..size]).unwrap();
+        self.usb_serial.write(b"\n").unwrap();
     }
 
+    /// To configure the  mode of the io
     ///
-    /// 
-    fn process_set_io_mode(&mut self, cmd : &Command ) {
-
+    fn process_set_io_mode(&mut self, cmd: &Command) {
         // Get io from cmd
         let idx = self.map_ios[cmd.pin as usize];
         let io = &mut self.dyn_ios[idx];
 
+        // error flag
+        let mut error: bool = false;
 
-        // Configure the pin to operate as a readable push pull output
-        io.into_readable_output();
+        // Process the argument
+        match cmd.arg {
+            0 => {
+                io.into_pull_up_input();
+            }
 
-        // Configure the pin to operate as a pulled down input
-        // io.into_pull_down_input();
-        // io.into_pull_up_input();
+            1 => {
+                io.into_pull_down_input();
+            }
 
+            2 => {
+                io.into_readable_output();
+            }
+
+            default => {
+                error = true;
+                self.send_answer(&Answer {
+                    sts: AnsStatus::Error as u8,
+                    pin: 0,
+                    arg: 0,
+                    msg: "Unknown arg value for set io mode command",
+                });
+            }
+        }
+
+        // Send ack
+        if !error
+        {
+            self.send_answer(&Answer {
+                sts: AnsStatus::Ok as u8,
+                pin: 0,
+                arg: 0,
+                msg: "",
+            });
+        }
     }
 
+    /// To write a value on the io
     ///
-    /// 
-    fn process_write_io(&mut self, cmd : &Command ) {
-
+    fn process_write_io(&mut self, cmd: &Command) {
         // Get io from cmd
         let idx = self.map_ios[cmd.pin as usize];
         let io = &mut self.dyn_ios[idx];
-        
+
+        // error flag
+        let mut error: bool = false;
+
+        // Process the argument
+        match cmd.arg {
+            0 => {
+                io.set_low().unwrap();
+            }
+
+            1 => {
+                io.set_high().unwrap();
+            }
+
+            default => {
+                error = true;
+                self.send_answer(&Answer {
+                    sts: AnsStatus::Error as u8,
+                    pin: 0,
+                    arg: 0,
+                    msg: "Unknown arg value for set io mode command",
+                });
+            }
+        }
+
+        // Send ack
+        if !error
+        {
+            self.send_answer(&Answer {
+                sts: AnsStatus::Ok as u8,
+                pin: 0,
+                arg: 0,
+                msg: "",
+            });
+        }
     }
 
+    /// To read an io
     ///
-    /// 
-    fn process_read_io(&mut self, cmd : &Command ) {
-
+    fn process_read_io(&mut self, cmd: &Command) {
         // Get io from cmd
         let idx = self.map_ios[cmd.pin as usize];
         let io = &mut self.dyn_ios[idx];
-        
+
+        // if(io.is_high().unwrap()) {
+
+        // } else {
+
+        // }
     }
 
     /// Main loop of the main task of the application
-    /// 
+    ///
     pub fn run_forever(&mut self) -> ! {
-
-
         let mut cmd_buffer = [0u8; 1024];
+
         loop {
-            let mut tmp_buf = [0u8; 20];
 
             match self.usb_buffer.get_command(&mut cmd_buffer) {
                 None => {}
@@ -169,31 +239,20 @@ impl PicohaIo
                     let cmd_slice_ref = &cmd_buffer[0..cmd_end_index];
 
                     match serde_json_core::de::from_slice::<Command>(cmd_slice_ref) {
-                        
+
+                        // Process parsing error
                         Err(_e) => {
-                            
-
-                            self.send_log();
-
-
-                            // // Do nothing
-                            // let _ = self.usb_serial.write(b"error parsing json command\n");
-                            // let _ = self.usb_serial.write(cmd_slice_ref);
-                            // let _ = self.usb_serial.write(b" == ");
-                            // let _ = self
-                            //     .usb_serial
-                            //     .write(cmd_end_index.numtoa(10, &mut tmp_buf));
-                            // let _ = self.usb_serial.write(b" == \r\n");
+                            self.send_answer(&Answer {
+                                sts: AnsStatus::Error as u8,
+                                pin: 0,
+                                arg: 0,
+                                msg: "error parsing command",
+                            });
                         }
 
                         Ok(cmd) => {
-                            // let _ = self.usb_serial.write(cmd.0.cmd.len().numtoa(10, &mut tmp_buf));
-                        //     let _ = self.usb_serial.write(cmd.0.cmd.numtoa(10, &mut tmp_buf));
-                        //     let _ = self.usb_serial.write(b"\n");
-
                             let data = &cmd.0;
                             match data.cod {
-
                                 0 => {
                                     self.process_set_io_mode(data);
                                 }
@@ -212,13 +271,10 @@ impl PicohaIo
                                     self.usb_serial.write(b" command not found\"}\r\n").ok();
                                 }
                             }
-                                
-
                         }
                     }
                 }
             }
-
         }
     }
 }
