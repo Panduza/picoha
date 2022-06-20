@@ -20,6 +20,7 @@ use usbd_serial::SerialPort;
 
 // Algos
 use numtoa::NumToA;
+use arrayvec::ArrayString;
 
 // ============================================================================
 
@@ -92,6 +93,9 @@ pub struct PicohaIo {
 
 /// Implementation of the App
 impl PicohaIo {
+
+    // ------------------------------------------------------------------------
+
     /// Application intialization
     pub fn new(
         delay: cortex_m::delay::Delay,
@@ -111,6 +115,8 @@ impl PicohaIo {
         }
     }
 
+    // ------------------------------------------------------------------------
+
     /// To send a message back to the user
     ///
     fn send_answer(&mut self, ans: &Answer) {
@@ -121,6 +127,8 @@ impl PicohaIo {
         self.usb_serial.write(&self.ans_buffer[0..size]).unwrap();
         self.usb_serial.write(b"\n").unwrap();
     }
+
+    // ------------------------------------------------------------------------
 
     /// To configure the  mode of the io
     ///
@@ -137,37 +145,31 @@ impl PicohaIo {
             0 => {
                 io.into_pull_up_input();
             }
-
             1 => {
                 io.into_pull_down_input();
             }
-
             2 => {
                 io.into_readable_output();
             }
-
             default => {
                 error = true;
-                self.send_answer(&Answer {
-                    sts: AnsStatus::Error as u8,
-                    pin: 0,
-                    arg: 0,
-                    msg: "Unknown arg value for set io mode command",
-                });
+                let mut num = [0u8; 20];
+                let mut txt = ArrayString::<100>::new();
+                txt.push_str("Unknown arg value for set io mode command (");
+                txt.push_str(default.numtoa_str(10, &mut num));
+                txt.push_str(")");
+                self.send_answer(&Answer{ sts: AnsStatus::Error as u8, pin: 0, arg: 0, msg: &txt });
             }
         }
 
         // Send ack
         if !error
         {
-            self.send_answer(&Answer {
-                sts: AnsStatus::Ok as u8,
-                pin: 0,
-                arg: 0,
-                msg: "",
-            });
+            self.send_answer(&Answer{ sts: AnsStatus::Ok as u8, pin: 0, arg: 0, msg: "" });
         }
     }
+
+    // ------------------------------------------------------------------------
 
     /// To write a value on the io
     ///
@@ -184,33 +186,28 @@ impl PicohaIo {
             0 => {
                 io.set_low().unwrap();
             }
-
             1 => {
                 io.set_high().unwrap();
             }
-
             default => {
                 error = true;
-                self.send_answer(&Answer {
-                    sts: AnsStatus::Error as u8,
-                    pin: 0,
-                    arg: 0,
-                    msg: "Unknown arg value for set io mode command",
-                });
+                let mut num = [0u8; 20];
+                let mut txt = ArrayString::<100>::new();
+                txt.push_str("Unknown arg value for write command (");
+                txt.push_str(default.numtoa_str(10, &mut num));
+                txt.push_str(")");
+                self.send_answer(&Answer{ sts: AnsStatus::Error as u8, pin: 0, arg: 0, msg: &txt });
             }
         }
 
         // Send ack
         if !error
         {
-            self.send_answer(&Answer {
-                sts: AnsStatus::Ok as u8,
-                pin: 0,
-                arg: 0,
-                msg: "",
-            });
+            self.send_answer(&Answer{ sts: AnsStatus::Ok as u8, pin: 0, arg: 0, msg: "" });
         }
     }
+
+    // ------------------------------------------------------------------------
 
     /// To read an io
     ///
@@ -225,6 +222,8 @@ impl PicohaIo {
 
         // }
     }
+
+    // ------------------------------------------------------------------------
 
     /// Main loop of the main task of the application
     ///
