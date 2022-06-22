@@ -3,49 +3,57 @@ import json
 import base64
 import pyudev
 import serial
+import threading
 from loguru import logger
 from panduza_platform import MetaDriverIo
 from statemachine import StateMachine, State
 
 # pip install python-statemachine
 
-# -----------------------------------------------------------------------------
-
-class CallbackState(State):
-    def __init__(self, name, cb, value=None, initial=False):
-        super().__init__(name, value, initial)
-        self.cb = cb
 
 # -----------------------------------------------------------------------------
 
+class PicohaBridgeMachine(StateMachine):
+    # States
+    initialize = State('Initialize', initial=True)
+    error = State('Error')
 
-# class TrafficLightMachine(StateMachine):
-#     green = State('Green', initial=True)
-#     yellow = State('Yellow')
-#     red = State('Red')
-
-#     slowdown = green.to(yellow)
-#     stop = yellow.to(red)
-#     go = red.to(green)
+    # Events
+    init_fail = initialize.to(error)
     
 
-# traffic_light = TrafficLightMachine()
+# -----------------------------------------------------------------------------
 
-# print(traffic_light.current_state)
+class PicohaBridge:
 
-# traffic_light.slowdown()
+    def __init__(self, serial_port="test"):
+        self.smachine = PicohaBridgeMachine()
+        self.serial_port = serial_port
+        self.mutex = threading.Lock()
 
-# print(traffic_light.current_state)
+    def state_initialize(self):
+        self.smachine.init_fail()
 
+    def loop(self):
+        self.mutex.acquire()
+        
+        cs = self.smachine.current_state
+        # logger.debug(f"{cs}")
+        if cs.name == 'Initialize':
+            self.state_initialize()
+        
+        self.mutex.release()
+        return False
 
-
-
-
-
+# -----------------------------------------------------------------------------
 
 class DriverPicohaIO(MetaDriverIo):
     """Driver IO for the Picoha
     """
+    
+    # Managed bridges
+    # { portname => PicohaBridge }
+    Bridges = dict()
 
     ###########################################################################
     ###########################################################################
@@ -54,7 +62,7 @@ class DriverPicohaIO(MetaDriverIo):
         """FROM MetaDriver
         """
         return {
-            "compatible": "picoha_twi_master",
+            "compatible": "picoha_io",
             "info": { "type": "io", "version": "1.0" },
             "settings": {
                 "usbid_vendor":  "[optional] Usb vendor ID in the following format (\"16c0\" : default)",
@@ -75,17 +83,13 @@ class DriverPicohaIO(MetaDriverIo):
         self.usbid_serial = None
 
         # Get serial port
-        self.serial_port = self.ttyPortfromUsbInfo(self.usbid_vendor, self.usbid_product, self.usbid_serial, base_dev_tty="/dev/ttyACM")
-        if self.serial_port is None:
-            raise Exception(f"Serial Not Found")
+        # self.serial_port = self.ttyPortfromUsbInfo(self.usbid_vendor, self.usbid_product, self.usbid_serial, base_dev_tty="/dev/ttyACM")
+        # if self.serial_port is None:
+        #     raise Exception(f"Serial Not Found")
 
         #
-        self.ser = serial.Serial(self.serial_port, 115200)
-
-
-
-        #
-        logger.debug(f"interface ready")
+        self.serial_port = "pook"
+        DriverPicohaIO.Bridges[self.serial_port] = PicohaBridge()
 
 
     ###########################################################################
@@ -102,7 +106,7 @@ class DriverPicohaIO(MetaDriverIo):
     def loop(self):
         """FROM MetaDriver
         """
-        return False
+        return DriverPicohaIO.Bridges[self.serial_port].loop()
 
     ###############################################################################
     ###############################################################################
