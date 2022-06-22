@@ -16,32 +16,76 @@ from statemachine import StateMachine, State
 class PicohaBridgeMachine(StateMachine):
     # States
     initialize = State('Initialize', initial=True)
+    running = State('Running')
     error = State('Error')
 
     # Events
     init_fail = initialize.to(error)
-    
+    init_success = initialize.to(running)
+    runtine_error = running.to(error)
+    restart = error.to(initialize)
 
 # -----------------------------------------------------------------------------
 
 class PicohaBridge:
 
+    ###########################################################################
+    ###########################################################################
+    
     def __init__(self, serial_port="test"):
-        self.smachine = PicohaBridgeMachine()
+        self.fsm = PicohaBridgeMachine()
         self.serial_port = serial_port
         self.mutex = threading.Lock()
-
+    
+    ###########################################################################
+    ###########################################################################
+    
     def state_initialize(self):
-        self.smachine.init_fail()
 
+        # Get serial port
+        # self.serial_port = self.ttyPortfromUsbInfo(self.usbid_vendor, self.usbid_product, self.usbid_serial, base_dev_tty="/dev/ttyACM")
+        # if self.serial_port is None:
+        #     raise Exception(f"Serial Not Found")
+
+
+        # Try to initialize the serial object
+        try:
+            self.serial_obj = serial.Serial(self.serial_port)
+        except serial.serialutil.SerialException:
+            self.fsm.init_fail()
+            self.start_time = time.time()
+            return
+
+        self.fsm.init_success()
+
+    ###########################################################################
+    ###########################################################################
+    
+    def state_running(self):
+        pass
+
+    ###########################################################################
+    ###########################################################################
+    
+    def state_error(self):    
+        if time.time() - self.start_time > 3: 
+            self.fsm.restart()
+
+    ###########################################################################
+    ###########################################################################
+    
     def loop(self):
         self.mutex.acquire()
-        
-        cs = self.smachine.current_state
-        # logger.debug(f"{cs}")
-        if cs.name == 'Initialize':
+
+        cs = self.fsm.current_state
+        logger.debug(f"{cs}")
+        if   cs.name == 'Initialize':
             self.state_initialize()
-        
+        elif cs.name == 'Running':
+            self.state_running()
+        elif cs.name == 'Error':
+            self.state_error()
+
         self.mutex.release()
         return False
 
@@ -81,11 +125,6 @@ class DriverPicohaIO(MetaDriverIo):
         self.usbid_vendor = "16c0"
         self.usbid_product = "05e1"
         self.usbid_serial = None
-
-        # Get serial port
-        # self.serial_port = self.ttyPortfromUsbInfo(self.usbid_vendor, self.usbid_product, self.usbid_serial, base_dev_tty="/dev/ttyACM")
-        # if self.serial_port is None:
-        #     raise Exception(f"Serial Not Found")
 
         #
         self.serial_port = "pook"
