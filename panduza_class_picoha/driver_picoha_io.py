@@ -40,6 +40,8 @@ def TTYPortfromUsbInfo(vendor_id, product_id, serial=None, base_dev_tty="/dev/tt
 # -----------------------------------------------------------------------------
 
 class PicohaBridgeMachine(StateMachine):
+    """
+    """
     # States
     initialize = State('Initialize', initial=True)
     running = State('Running')
@@ -61,6 +63,8 @@ class PicohaBridge:
     ###########################################################################
     
     def __init__(self, vendor_id, product_id, serial=None):
+        """Constructor
+        """
         self.usbid_vendor = vendor_id
         self.usbid_product = product_id
         self.usbid_serial = serial
@@ -72,7 +76,8 @@ class PicohaBridge:
     ###########################################################################
     
     def state_initialize(self):
-
+        """Initial state, configure the serial port
+        """
         # Get serial port
         self.serial_port = TTYPortfromUsbInfo(self.usbid_vendor, self.usbid_product, self.usbid_serial, base_dev_tty="/dev/ttyACM")
         if self.serial_port is None:
@@ -97,7 +102,8 @@ class PicohaBridge:
     ###########################################################################
     
     def state_running(self):
-        
+        """
+        """
         # Communication test sequence
         try:
             req = { "cod": 10, "pin": 0, "arg": 0 }
@@ -112,6 +118,8 @@ class PicohaBridge:
     ###########################################################################
     
     def state_error(self):
+        """
+        """
         global ERROR_TIME_BEFROE_RETRY_S
         if time.time() - self.start_time > ERROR_TIME_BEFROE_RETRY_S:
             self.fsm.restart()
@@ -120,6 +128,8 @@ class PicohaBridge:
     ###########################################################################
     
     def loop(self):
+        """
+        """
         self.mutex.acquire()
 
         cs = self.fsm.current_state
@@ -133,6 +143,72 @@ class PicohaBridge:
 
         self.mutex.release()
         return False
+
+    ###########################################################################
+    ###########################################################################
+
+    def set_io_direction(self, gpio_id, direction):
+        """Set the io direction
+
+        Args:
+            gpio_id (int): id of the targetted gpio
+            direction (str): requested direction
+        """
+        success = True
+        
+        self.mutex.acquire()
+        
+        dval = 0
+        if direction == "in":
+            dval = 1
+        if direction == "out":
+            dval = 2
+
+        try:
+            # COD:0 => set pin mode
+            req = { "cod": 0, "pin": gpio_id, "arg": dval }
+            self.serial_obj.write( (json.dumps(req) + "\n") .encode() )
+            ans = self.serial_obj.readline()
+            # logger.debug(f"{ans}")
+        except serial.serialutil.SerialException as e:
+            logger.error(f"adapter unreachable !")
+            self.fsm.runtine_error()
+            success=False
+
+        self.mutex.release()
+        
+        return success
+
+    ###########################################################################
+    ###########################################################################
+    
+    def set_io_value(self, gpio_id, value):
+        """Set the io value
+
+        Args:
+            gpio_id (int): id of the targetted gpio
+            value (int): requested value
+        """
+        self.mutex.acquire()
+
+        try:
+            # COD:1 => wrtie pin value
+            req = { "cod": 1, "pin": gpio_id, "arg": value }
+            self.serial_obj.write( (json.dumps(req) + "\n") .encode() )
+            ans = self.serial_obj.readline()
+            # logger.debug(f"{ans}")
+        except serial.serialutil.SerialException as e:
+            logger.error(f"adapter unreachable !")
+            self.fsm.runtine_error()
+
+        self.mutex.release()
+
+
+    ###########################################################################
+    ###########################################################################
+    
+    def get_io_value(self):
+        pass
 
 # -----------------------------------------------------------------------------
 
@@ -167,11 +243,33 @@ class DriverPicohaIO(MetaDriverIo):
         """FROM MetaDriver
         """
         # Initialize properties
+        self.gpio_id = -1
+        self.polling_time_ms = 1000
         self.usbid_vendor = "16c0"
         self.usbid_product = "05e1"
         self.usbid_serial = None
+        
+        # Import settings
+        if "settings" in tree:
+            settings = tree["settings"]
+            if "gpio_id" in settings:
+                self.gpio_id = settings["gpio_id"]
+            if "polling_time_ms" in settings:
+                self.polling_time_ms = settings["polling_time_ms"]
+            if "usbid_vendor" in settings:
+                self.usbid_vendor = settings["usbid_vendor"]
+            if "usbid_product" in settings:
+                self.usbid_product = settings["usbid_product"]
+            if "usbid_serial" in settings:
+                self.usbid_serial = settings["usbid_serial"]
+
+        # 
         usb_uuid = self.usbid_vendor + self.usbid_product + str(self.usbid_serial)
         logger.debug(f"usb_uuid = {usb_uuid}")
+
+        # Register commands
+        self.register_command("value/set", self.__value_set)
+        self.register_command("direction/set", self.__direction_set)
 
         # Init the bridge
         DriverPicohaIO.Bridges[usb_uuid] = PicohaBridge(self.usbid_vendor, self.usbid_product, self.usbid_serial)
@@ -193,8 +291,37 @@ class DriverPicohaIO(MetaDriverIo):
         """
         return self.bridge.loop()
 
-    ###############################################################################
-    ###############################################################################
+    ###########################################################################
+    ###########################################################################
 
+    def __value_set(self, payload):
+        """Apply set value request
+        """
+        # Parse request
+        req = self.payload_to_dict(payload)
+        req_value = req["value"]
+        # Update value
+        self.bridge.set_io_value(self.gpio_id, req_value)
+        self.push_io_value(self.value)
+        #
+        if self.loopback:
+            self.loopback.force_value_set(self.value)
+        # log
+        logger.info(f"new value : {self.value}")
 
+    ###########################################################################
+    ###########################################################################
+
+    def __direction_set(self, payload):
+        """Apply set direction request
+        """
+        # Parse request
+        req = self.payload_to_dict(payload)
+        req_direction = req["direction"]
+        # Update direction
+        self.bridge.set_io_direction(self.gpio_id, req_direction)
+        self.push_io_direction(self.direction)
+        # log
+        logger.info(f"new direction : {self.direction}")
+        
 
