@@ -10,6 +10,32 @@ from statemachine import StateMachine, State
 
 # pip install python-statemachine
 
+# Number of seconds befroe the state error try to re-init
+ERROR_TIME_BEFROE_RETRY_S=3
+
+# -----------------------------------------------------------------------------
+
+def TTYPortfromUsbInfo(vendor_id, product_id, serial=None, base_dev_tty="/dev/ttyACM"):
+    """Find tty port from usb information
+    """
+    # Explore usb device with tty subsystem
+    udev_context = pyudev.Context()
+    for device in udev_context.list_devices(ID_BUS='usb', SUBSYSTEM='tty'):
+        properties = dict(device.properties)
+        
+        # Need to find the one with the DEVNAME corresponding to the /dev serial port
+        if 'DEVNAME' not in properties or not properties['DEVNAME'].startswith(base_dev_tty):
+            continue
+
+        # Check vendor/product/serial
+        if vendor_id == properties["ID_VENDOR_ID"] and product_id == properties["ID_MODEL_ID"]:
+            if serial:
+                if serial == properties["ID_SERIAL_SHORT"]:
+                    return properties["DEVNAME"]
+            else:
+                return properties["DEVNAME"]
+
+    return None
 
 # -----------------------------------------------------------------------------
 
@@ -28,47 +54,66 @@ class PicohaBridgeMachine(StateMachine):
 # -----------------------------------------------------------------------------
 
 class PicohaBridge:
+    """The bridge manage the communication between multiple interface and one device
+    """
 
     ###########################################################################
     ###########################################################################
     
-    def __init__(self, serial_port="test"):
+    def __init__(self, vendor_id, product_id, serial=None):
+        self.usbid_vendor = vendor_id
+        self.usbid_product = product_id
+        self.usbid_serial = serial
+        self.start_time = time.time()
         self.fsm = PicohaBridgeMachine()
-        self.serial_port = serial_port
         self.mutex = threading.Lock()
-    
+
     ###########################################################################
     ###########################################################################
     
     def state_initialize(self):
 
         # Get serial port
-        # self.serial_port = self.ttyPortfromUsbInfo(self.usbid_vendor, self.usbid_product, self.usbid_serial, base_dev_tty="/dev/ttyACM")
-        # if self.serial_port is None:
-        #     raise Exception(f"Serial Not Found")
-
-
-        # Try to initialize the serial object
-        try:
-            self.serial_obj = serial.Serial(self.serial_port)
-        except serial.serialutil.SerialException:
+        self.serial_port = TTYPortfromUsbInfo(self.usbid_vendor, self.usbid_product, self.usbid_serial, base_dev_tty="/dev/ttyACM")
+        if self.serial_port is None:
+            logger.error(f"adapter not connected !")
             self.fsm.init_fail()
             self.start_time = time.time()
             return
 
+        # Try to initialize the serial object
+        try:
+            self.serial_obj = serial.Serial(self.serial_port, timeout=2)
+        except serial.serialutil.SerialException:
+            logger.error(f"serial cannot be initialized !")
+            self.fsm.init_fail()
+            self.start_time = time.time()
+            return
+
+        # Initialization ok !
         self.fsm.init_success()
 
     ###########################################################################
     ###########################################################################
     
     def state_running(self):
-        pass
+        
+        # Communication test sequence
+        try:
+            req = { "cod": 10, "pin": 0, "arg": 0 }
+            self.serial_obj.write( (json.dumps(req) + "\n") .encode() )
+            line = self.serial_obj.readline()
+            logger.debug(f"{line}")
+        except serial.serialutil.SerialException as e:
+            logger.error(f"adapter unreachable !")
+            self.fsm.runtine_error()
 
     ###########################################################################
     ###########################################################################
     
-    def state_error(self):    
-        if time.time() - self.start_time > 3: 
+    def state_error(self):
+        global ERROR_TIME_BEFROE_RETRY_S
+        if time.time() - self.start_time > ERROR_TIME_BEFROE_RETRY_S:
             self.fsm.restart()
 
     ###########################################################################
@@ -125,11 +170,12 @@ class DriverPicohaIO(MetaDriverIo):
         self.usbid_vendor = "16c0"
         self.usbid_product = "05e1"
         self.usbid_serial = None
+        usb_uuid = self.usbid_vendor + self.usbid_product + str(self.usbid_serial)
+        logger.debug(f"usb_uuid = {usb_uuid}")
 
-        #
-        self.serial_port = "pook"
-        DriverPicohaIO.Bridges[self.serial_port] = PicohaBridge()
-
+        # Init the bridge
+        DriverPicohaIO.Bridges[usb_uuid] = PicohaBridge(self.usbid_vendor, self.usbid_product, self.usbid_serial)
+        self.bridge = DriverPicohaIO.Bridges[usb_uuid]
 
     ###########################################################################
     ###########################################################################
@@ -145,34 +191,10 @@ class DriverPicohaIO(MetaDriverIo):
     def loop(self):
         """FROM MetaDriver
         """
-        return DriverPicohaIO.Bridges[self.serial_port].loop()
+        return self.bridge.loop()
 
     ###############################################################################
     ###############################################################################
 
-    def ttyPortfromUsbInfo(self, vendor_id, product_id, serial=None, base_dev_tty="/dev/ttyACM"):
-        """Find tty port from usb information
-        """
-        # Explore usb device with tty subsystem
-        udev_context = pyudev.Context()
-        for device in udev_context.list_devices(ID_BUS='usb', SUBSYSTEM='tty'):
-            properties = dict(device.properties)
-            
-            # Need to find the one with the DEVNAME corresponding to the /dev serial port
-            if 'DEVNAME' not in properties or not properties['DEVNAME'].startswith(base_dev_tty):
-                continue
-
-            # Check vendor/product/serial
-            if vendor_id == properties["ID_VENDOR_ID"] and product_id == properties["ID_MODEL_ID"]:
-                if serial:
-                    if serial == properties["ID_SERIAL_SHORT"]:
-                        return properties["DEVNAME"]
-                else:
-                    return properties["DEVNAME"]
-
-        return None
-
-    ###############################################################################
-    ###############################################################################
 
 

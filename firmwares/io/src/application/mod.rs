@@ -29,7 +29,7 @@ use serde_json_core;
 
 #[derive(Deserialize, Debug)]
 struct Command {
-    /// 0 set mode / 1 write val / 2 read val
+    /// 0 set mode / 1 write val / 2 read val / 10 test
     cod: u8,
     /// id of the pin (X => gpioX)
     pin: u8,
@@ -55,7 +55,7 @@ struct Answer<'a> {
 
 enum AnsStatus {
     Ok = 0,
-    Error = 1
+    Error = 1,
 }
 
 // ============================================================================
@@ -264,10 +264,20 @@ impl PicohaIo {
                                     self.process_read_io(data);
                                 }
 
+                                10 => {
+                                    // version maj.min
+                                    // pin = v-maj
+                                    // arg = v-min
+                                    self.send_answer(&Answer{ sts: AnsStatus::Ok as u8, pin: 0, arg: 1, msg: "" });
+                                }
+
                                 default => {
-                                    self.usb_serial.write(b"{\"log\": \"").ok();
-                                    // self.usb_serial.write(default.as_bytes()).ok();
-                                    self.usb_serial.write(b" command not found\"}\r\n").ok();
+                                    let mut num = [0u8; 20];
+                                    let mut txt = ArrayString::<100>::new();
+                                    txt.push_str("Unknown arg value for command (");
+                                    txt.push_str(default.numtoa_str(10, &mut num));
+                                    txt.push_str(")");
+                                    self.send_answer(&Answer{ sts: AnsStatus::Error as u8, pin: 0, arg: 0, msg: &txt });
                                 }
                             }
                         }
