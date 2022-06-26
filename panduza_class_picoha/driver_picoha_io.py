@@ -109,7 +109,7 @@ class PicohaBridge:
             req = { "cod": 10, "pin": 0, "arg": 0 }
             self.serial_obj.write( (json.dumps(req) + "\n") .encode() )
             line = self.serial_obj.readline()
-            logger.debug(f"{line}")
+            # logger.debug(f"{line}")
         except serial.serialutil.SerialException as e:
             logger.error(f"adapter unreachable !")
             self.fsm.runtine_error()
@@ -133,7 +133,7 @@ class PicohaBridge:
         self.mutex.acquire()
 
         cs = self.fsm.current_state
-        logger.debug(f"{cs}")
+        # logger.debug(f"{cs}")
         if   cs.name == 'Initialize':
             self.state_initialize()
         elif cs.name == 'Running':
@@ -189,6 +189,7 @@ class PicohaBridge:
             gpio_id (int): id of the targetted gpio
             value (int): requested value
         """
+        success = True
         self.mutex.acquire()
 
         try:
@@ -200,9 +201,10 @@ class PicohaBridge:
         except serial.serialutil.SerialException as e:
             logger.error(f"adapter unreachable !")
             self.fsm.runtine_error()
+            success=False
 
         self.mutex.release()
-
+        return success
 
     ###########################################################################
     ###########################################################################
@@ -301,13 +303,11 @@ class DriverPicohaIO(MetaDriverIo):
         req = self.payload_to_dict(payload)
         req_value = req["value"]
         # Update value
-        self.bridge.set_io_value(self.gpio_id, req_value)
-        self.push_io_value(self.value)
-        #
-        if self.loopback:
-            self.loopback.force_value_set(self.value)
-        # log
-        logger.info(f"new value : {self.value}")
+        if self.bridge.set_io_value(self.gpio_id, req_value):
+            self.push_io_value(req_value)
+            logger.info(f"new value : {req_value}")
+        else:
+            logger.error(f"fail setting new value : {req_value}")
 
     ###########################################################################
     ###########################################################################
@@ -321,7 +321,7 @@ class DriverPicohaIO(MetaDriverIo):
         # Update direction
         if self.bridge.set_io_direction(self.gpio_id, req_direction):
             self.push_io_direction(req_direction)
-        # log
-        logger.info(f"new direction : {self.direction}")
-        
+            logger.info(f"new direction : {req_direction}")
+        else:
+            logger.error(f"fail setting new direction : {req_direction}")
 

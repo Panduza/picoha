@@ -1,3 +1,4 @@
+import time
 import signal
 import logging
 import subprocess
@@ -24,6 +25,9 @@ def platform_start(context, treefile):
     treefilepath = PathToRsc(treefile)
     PLATFORM_PROC = subprocess.Popen(["python3", platform_run_script, treefilepath], stdout=PLATFORM_LOGF, stderr=PLATFORM_LOGF)
 
+    # Let some time to the platform to boot
+    time.sleep(3)
+
 ###############################################################################
 ###############################################################################
 
@@ -31,6 +35,7 @@ def platform_stop(context):
     """Stop the platform
     """
     global PLATFORM_PROC
+    global PLATFORM_LOGF
     logging.debug(f"STOPING PLATFORM...")
     if PLATFORM_PROC:
         PLATFORM_PROC.send_signal(signal.SIGINT)
