@@ -27,7 +27,13 @@ cargo run
 ```bash
 
 sudo cp tools/99-aardvark-pico-clone.rules  /etc/udev/rules.d/
+
+
+test
+pip install PyHamcrest coverage paho-mqtt
 ```
+
+
 
 
 

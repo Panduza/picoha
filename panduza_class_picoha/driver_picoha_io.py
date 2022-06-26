@@ -10,7 +10,7 @@ from statemachine import StateMachine, State
 
 # pip install python-statemachine
 
-# Number of seconds befroe the state error try to re-init
+# Number of seconds before the state error try to re-init
 ERROR_TIME_BEFROE_RETRY_S=3
 
 # -----------------------------------------------------------------------------
@@ -248,7 +248,7 @@ class DriverPicohaIO(MetaDriverIo):
         self.usbid_vendor = "16c0"
         self.usbid_product = "05e1"
         self.usbid_serial = None
-        
+
         # Import settings
         if "settings" in tree:
             settings = tree["settings"]
@@ -319,8 +319,8 @@ class DriverPicohaIO(MetaDriverIo):
         req = self.payload_to_dict(payload)
         req_direction = req["direction"]
         # Update direction
-        self.bridge.set_io_direction(self.gpio_id, req_direction)
-        self.push_io_direction(self.direction)
+        if self.bridge.set_io_direction(self.gpio_id, req_direction):
+            self.push_io_direction(req_direction)
         # log
         logger.info(f"new direction : {self.direction}")
         
