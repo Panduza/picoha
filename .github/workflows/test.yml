@@ -12,7 +12,10 @@ jobs:
           toolchain: stable
       
       - run: rustup target add thumbv6m-none-eabi
-      - run: cargo build --release
+      
+      - name: Build IO Firmware
+        run: cargo build --release
+        working-directory: firmwares/io
 
 #       - run: echo "🎉 Test finished !"
 
