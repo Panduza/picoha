@@ -5,6 +5,15 @@
 To run those tests you need:
 
 - One MQTT broker without any security activated on localhost:1883
+- Plug the hardware configuration corresponding to the firmware tested
+
+## Picoha IO firmware Validation
+
+This section match the [features](features/io.feature) from the io firmware
+
+To validate this firmware the following loopback connections must be set
+
+![](img/raspberry-pi-io-loopback.png)
 
 ## Dependencies
 
@@ -26,7 +35,6 @@ This project is already prepared to be used like this. To check that your setup 
 behave
 
 # To get the html report
-source html.sh
-# which is in fact behave command with args 'behave -f html -o report.html'
+behave -f html -o report.html
 ```
 
