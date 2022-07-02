@@ -20,4 +20,8 @@ dist
 test_reports/*
 !test_reports/.gitkeep
 
+release/*
+!release/.gitkeep
+
+
 .coverage
