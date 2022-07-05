@@ -22,6 +22,6 @@ test_reports/*
 
 release/*
 !release/.gitkeep
-
+documentation
 
 .coverage

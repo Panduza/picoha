@@ -46,4 +46,4 @@ Feature: Io
     #     When io interface "out" value is set to "0"
     #     Then io interface "in" value is "0"
 
-@action.platform_close
+# @action.platform_close
