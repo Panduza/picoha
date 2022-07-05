@@ -1,7 +1,6 @@
 version: "3.9"
 services:
-  doxygen:
-    image: xdoctorwhoz/doxygen:1.8.20
+  gpaperwork:
+    image: gpaperwork:0.0
     volumes:
-      - .:/work/service
-
+      - .:/workdir
