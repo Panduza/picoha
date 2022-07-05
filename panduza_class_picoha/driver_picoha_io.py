@@ -4,7 +4,7 @@ import base64
 import pyudev
 import serial
 import threading
-from loguru import logger
+from loguru import self.log
 from panduza_platform import MetaDriverIo
 from statemachine import StateMachine, State
 
@@ -81,7 +81,7 @@ class PicohaBridge:
         # Get serial port
         self.serial_port = TTYPortfromUsbInfo(self.usbid_vendor, self.usbid_product, self.usbid_serial, base_dev_tty="/dev/ttyACM")
         if self.serial_port is None:
-            logger.error(f"adapter not connected !")
+            self.log.error(f"adapter not connected !")
             self.fsm.init_fail()
             self.start_time = time.time()
             return
@@ -90,7 +90,7 @@ class PicohaBridge:
         try:
             self.serial_obj = serial.Serial(self.serial_port, timeout=2)
         except serial.serialutil.SerialException:
-            logger.error(f"serial cannot be initialized !")
+            self.log.error(f"serial cannot be initialized !")
             self.fsm.init_fail()
             self.start_time = time.time()
             return
@@ -109,9 +109,9 @@ class PicohaBridge:
             req = { "cod": 10, "pin": 0, "arg": 0 }
             self.serial_obj.write( (json.dumps(req) + "\n") .encode() )
             line = self.serial_obj.readline()
-            # logger.debug(f"{line}")
+            # self.log.debug(f"{line}")
         except serial.serialutil.SerialException as e:
-            logger.error(f"adapter unreachable !")
+            self.log.error(f"adapter unreachable !")
             self.fsm.runtine_error()
 
     ###########################################################################
@@ -133,7 +133,7 @@ class PicohaBridge:
         self.mutex.acquire()
 
         cs = self.fsm.current_state
-        # logger.debug(f"{cs}")
+        # self.log.debug(f"{cs}")
         if   cs.name == 'Initialize':
             self.state_initialize()
         elif cs.name == 'Running':
@@ -169,9 +169,9 @@ class PicohaBridge:
             req = { "cod": 0, "pin": gpio_id, "arg": dval }
             self.serial_obj.write( (json.dumps(req) + "\n") .encode() )
             ans = self.serial_obj.readline()
-            # logger.debug(f"{ans}")
+            # self.log.debug(f"{ans}")
         except serial.serialutil.SerialException as e:
-            logger.error(f"adapter unreachable !")
+            self.log.error(f"adapter unreachable !")
             self.fsm.runtine_error()
             success=False
 
@@ -197,9 +197,9 @@ class PicohaBridge:
             req = { "cod": 1, "pin": gpio_id, "arg": value }
             self.serial_obj.write( (json.dumps(req) + "\n") .encode() )
             ans = self.serial_obj.readline()
-            # logger.debug(f"{ans}")
+            # self.log.debug(f"{ans}")
         except serial.serialutil.SerialException as e:
-            logger.error(f"adapter unreachable !")
+            self.log.error(f"adapter unreachable !")
             self.fsm.runtine_error()
             success=False
 
@@ -267,7 +267,7 @@ class DriverPicohaIO(MetaDriverIo):
 
         # 
         usb_uuid = self.usbid_vendor + self.usbid_product + str(self.usbid_serial)
-        logger.debug(f"usb_uuid = {usb_uuid}")
+        self.log.debug(f"usb_uuid = {usb_uuid}")
 
         # Register commands
         self.register_command("value/set", self.__value_set)
@@ -305,9 +305,9 @@ class DriverPicohaIO(MetaDriverIo):
         # Update value
         if self.bridge.set_io_value(self.gpio_id, req_value):
             self.push_io_value(req_value)
-            logger.info(f"new value : {req_value}")
+            self.log.info(f"new value : {req_value}")
         else:
-            logger.error(f"fail setting new value : {req_value}")
+            self.log.error(f"fail setting new value : {req_value}")
 
     ###########################################################################
     ###########################################################################
@@ -321,7 +321,7 @@ class DriverPicohaIO(MetaDriverIo):
         # Update direction
         if self.bridge.set_io_direction(self.gpio_id, req_direction):
             self.push_io_direction(req_direction)
-            logger.info(f"new direction : {req_direction}")
+            self.log.info(f"new direction : {req_direction}")
         else:
-            logger.error(f"fail setting new direction : {req_direction}")
+            self.log.error(f"fail setting new direction : {req_direction}")
 
