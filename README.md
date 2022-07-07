@@ -1,9 +1,8 @@
 # PicoHA (Pico Host Adapter)
 
+
 Simple I2C/SPI host adapter based on RP2040 (RaspberryPi Pico).
 
-
-\subpage Panduza Python Platform Tests
 
 
 Base on

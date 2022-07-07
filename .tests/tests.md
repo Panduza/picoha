@@ -1,7 +1,6 @@
-# Panduza Python Platform Tests  {#page}
+# Panduza Python Platform Tests  {#TestsMainPage}
 
-**DOXYGEN FLAGS**
-- @page Panduza Python Platform Tests
+@subpage IntroductionSection
 
 ## Environment
 
