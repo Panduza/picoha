@@ -4,3 +4,8 @@ services:
     image: gpaperwork:0.0
     volumes:
       - .:/workdir
+    environment:
+      - USER_ID=1000
+      - GROUP_ID=1000
+
+

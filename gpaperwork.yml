@@ -1,0 +1,23 @@
+inputs:
+  features: .tests/features
+
+
+outputs:
+  directory: documentation
+
+  features:
+    formats:
+      - html
+      - docx
+    # templates
+      # - html: truc.css
+      # - docx: truc.docx
+
+
+  doxygen:
+    formats:
+      - html
+
+    overrides:
+      - PROJECT_NAME: Picoha
+
