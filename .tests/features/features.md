@@ -1,2 +1,0 @@
-# Picoha Specifications  {#SpecificationMainPage}
-

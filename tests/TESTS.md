@@ -1,6 +1,4 @@
-# Panduza Python Platform Tests  {#TestsMainPage}
-
-@subpage IntroductionSection
+# Tests  {#TestsMainPage}
 
 ## Environment
 
