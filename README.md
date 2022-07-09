@@ -1,7 +1,5 @@
 # PicoHA (Pico Host Adapter)
 
-@subpage SpecificationMainPage
-
 Simple host adapter based on RP2040 (RaspberryPi Pico) for the various application:
 
 - IO control
